@@ -1,0 +1,13 @@
+services:
+  api:
+    build: ./api
+    container_name: edgital-json-server
+    ports:
+      - '3000:3000'
+  edgital_road_overview:
+    build: ./edgital_road_overview
+    container_name: edgital_road_overview
+    ports:
+      - '5173:5173'
+    depends_on:
+      - api
