@@ -1,6 +1,7 @@
 import { After, Before } from '@cucumber/cucumber';
+import { actorCalled } from '@serenity-js/core';
 
-import { api, ROAD_WITHOUT_TODO } from '../../src/api';
+import { RemoveTodosForRoad, ROAD_WITHOUT_TODO } from '../../src/api';
 
 /**
  * Keep the "add Todo" scenarios deterministic and self-cleaning: the road we
@@ -8,10 +9,8 @@ import { api, ROAD_WITHOUT_TODO } from '../../src/api';
  * fresh one), and any Todo we create is removed afterwards — mirroring the
  * idempotent approach of the Postman/Newman API suite.
  */
-Before({ tags: '@todos' }, async () => {
-  await api.deleteTodosForRoad(ROAD_WITHOUT_TODO.fid);
-});
+Before({ tags: '@todos' }, () =>
+  actorCalled('Tester').attemptsTo(RemoveTodosForRoad(ROAD_WITHOUT_TODO.fid)));
 
-After({ tags: '@todos' }, async () => {
-  await api.deleteTodosForRoad(ROAD_WITHOUT_TODO.fid);
-});
+After({ tags: '@todos' }, () =>
+  actorCalled('Tester').attemptsTo(RemoveTodosForRoad(ROAD_WITHOUT_TODO.fid)));

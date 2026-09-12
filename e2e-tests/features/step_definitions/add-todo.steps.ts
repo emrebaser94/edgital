@@ -1,18 +1,11 @@
 import { Then, When } from '@cucumber/cucumber';
-import { actorCalled, Duration, Question, Wait } from '@serenity-js/core';
+import { actorCalled, Duration, Wait } from '@serenity-js/core';
 import { contain, Ensure, equals, isTrue } from '@serenity-js/assertions';
 import { By, isVisible, Navigate, PageElement } from '@serenity-js/web';
 
 import { RoadMap } from '../../src/screenplay/map';
 import { fillAndSaveTodo, TodoModal } from '../../src/screenplay/todoModal';
-import { api, ROAD_WITHOUT_TODO } from '../../src/api';
-
-/** Authors of the Todos currently stored against a given road (via the API). */
-const storedTodoAuthorsForRoad = (fid: number) =>
-  Question.about<Promise<string[]>>(`stored Todo authors for road ${fid}`, async () => {
-    const todos = await api.todosForRoad(fid);
-    return todos.map((t) => t.author ?? '');
-  });
+import { ROAD_WITHOUT_TODO, StoredTodoAuthors, TodosForRoad } from '../../src/api';
 
 const todosTableCellContaining = (text: string) =>
   PageElement.located(By.cssContainingText('td', text)).describedAs(`Todos cell "${text}"`);
@@ -31,7 +24,8 @@ When('Tester fills in the Todo form with description {string}, status {string} a
 
 Then('the backend stores a Todo for that road authored by {string}', (author: string) =>
   actorCalled('Tester').attemptsTo(
-    Ensure.that(storedTodoAuthorsForRoad(ROAD_WITHOUT_TODO.fid), contain(author)),
+    TodosForRoad(ROAD_WITHOUT_TODO.fid),
+    Ensure.that(StoredTodoAuthors(), contain(author)),
   ));
 
 Then('the Todos overview page lists a Todo authored by {string}', (author: string) =>
