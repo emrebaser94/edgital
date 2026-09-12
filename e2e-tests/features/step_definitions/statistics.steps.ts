@@ -1,10 +1,11 @@
 import { Given, Then } from '@cucumber/cucumber';
 import { actorCalled } from '@serenity-js/core';
 import { Ensure, equals, isCloseTo, not } from '@serenity-js/assertions';
+import { GetRequest, Send } from '@serenity-js/rest';
 import { isVisible } from '@serenity-js/web';
 
 import { StatisticsPage } from '../../src/screenplay/pages';
-import { api } from '../../src/api';
+import { AverageGwGrade } from '../../src/api';
 
 Given('Tester is on the Statistics page', () =>
   actorCalled('Tester').attemptsTo(
@@ -26,12 +27,11 @@ Then('the statistics table reports an average GW value', () =>
     Ensure.that(StatisticsPage.metricValueText('Average GW'), not(equals(''))),
   ));
 
-Then('the displayed Average GW matches the value computed from the roads endpoint', async () => {
-  const expected = await api.averageGw();
-  return actorCalled('Tester').attemptsTo(
+Then('the displayed Average GW matches the value computed from the roads endpoint', () =>
+  actorCalled('Tester').attemptsTo(
+    Send.a(GetRequest.to('/roads')),
     Ensure.that(
       StatisticsPage.metricValueText('Average GW').as((text: string) => Number.parseFloat(text)),
-      isCloseTo(expected, 0.0001),
+      isCloseTo(AverageGwGrade(), 0.0001),
     ),
-  );
-});
+  ));
