@@ -1,0 +1,10 @@
+{
+  "name": "edgital-qa",
+  "version": "1.0.0",
+  "private": true,
+  "description": "QA task: System Under Test plus Postman/Newman API tests and Serenity/JS E2E tests. This root manifest exists so IDEs recognise the repo as a Node.js/JavaScript project (and resolve Cucumber.js steps) instead of misdetecting it as a Java/Gradle build. It is intentionally NOT an npm workspace: each folder keeps its own package.json / lockfile and is installed independently (the CI does `cd e2e-tests && npm ci`).",
+  "scripts": {
+    "test:e2e": "cd e2e-tests && npm test",
+    "test:api": "cd api-tests && npx -y -p newman -p newman-reporter-htmlextra newman run road-overview.postman_collection.json -e road-overview.postman_environment.json -r cli,htmlextra"
+  }
+}
