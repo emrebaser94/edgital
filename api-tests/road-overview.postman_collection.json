@@ -1,0 +1,955 @@
+{
+  "info": {
+    "name": "Road Overview API - json-server",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "API test collection for the Road Overview json-server backend (base http://localhost:3000). Covers GET /roads, GET/POST /todos plus json-server features (filtering, sorting, pagination, single records) and negative/edge cases. All state-changing tests are self-cleaning (created todos are deleted again), so the collection is idempotent.\n\nNOT executed here (destructive, not recoverable via API): POST /roads returns 201 and OVERWRITES the entire FeatureCollection. See README for the documented reproduction. Assertions were verified empirically against json-server@0.17.4."
+  },
+  "item": [
+    {
+      "name": "1. GET /roads",
+      "item": [
+        {
+          "name": "GET /roads - happy path",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/roads"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Content-Type is JSON\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\"));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"body is a GeoJSON FeatureCollection\", () => pm.expect(b.type).to.eql(\"FeatureCollection\"));",
+                  "pm.test(\"features is a non-empty array\", () => { pm.expect(b.features).to.be.an(\"array\"); pm.expect(b.features.length).to.be.above(0); });",
+                  "pm.test(\"seed contains 773 road features (regression guard)\", () => pm.expect(b.features.length).to.eql(773));",
+                  "pm.test(\"a feature has properties.fid (number) and eemi_grade (object)\", () => {",
+                  "    const p = b.features[0].properties;",
+                  "    pm.expect(p.fid).to.be.a(\"number\");",
+                  "    pm.expect(p.eemi_grade).to.be.an(\"object\");",
+                  "});",
+                  "pm.test(\"response under 3s\", () => pm.expect(pm.response.responseTime).to.be.below(3000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /roads?_page&_limit&_sort - params ignored (limitation)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/roads?_page=1&_limit=5&_sort=fid"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// /roads value is an OBJECT (FeatureCollection), not an array -> json-server",
+                  "// pagination/sorting/filtering do NOT apply. This documents that limitation.",
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"pagination ignored: full FeatureCollection still returned\", () => pm.expect(b.features.length).to.eql(773));",
+                  "pm.test(\"no X-Total-Count header (not a paginable array resource)\", () => pm.expect(pm.response.headers.has(\"X-Total-Count\")).to.be.false);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /roads/1306 -> 404 (object resource, no id lookup)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/roads/1306"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"body is empty object\", () => pm.expect(pm.response.json()).to.eql({}));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. GET /todos",
+      "item": [
+        {
+          "name": "GET /todos - happy path",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/todos"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Content-Type is JSON\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\"));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"body is an array\", () => pm.expect(b).to.be.an(\"array\"));",
+                  "pm.test(\"contains at least one todo\", () => pm.expect(b.length).to.be.at.least(1));",
+                  "pm.test(\"every todo has id/title/road_fid\", () => b.forEach(x => {",
+                  "    pm.expect(x.id).to.be.a(\"number\");",
+                  "    pm.expect(x).to.have.property(\"title\");",
+                  "    pm.expect(x).to.have.property(\"road_fid\");",
+                  "}));",
+                  "pm.test(\"plain list has no X-Total-Count header\", () => pm.expect(pm.response.headers.has(\"X-Total-Count\")).to.be.false);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /todos/2 - existing",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/todos/2"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"returns the todo with id 2\", () => pm.expect(b.id).to.eql(2));",
+                  "pm.test(\"has a title\", () => pm.expect(b.title).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /todos/999999 - non-existing -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/todos/999999"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"body is empty object\", () => pm.expect(pm.response.json()).to.eql({}));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /todos/not-a-number -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/todos/not-a-number"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. GET /todos - filtering, sorting, pagination",
+      "item": [
+        {
+          "name": "Filter by field: ?status=In Planung",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/todos?status=In%20Planung"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"array returned\", () => pm.expect(b).to.be.an(\"array\"));",
+                  "pm.test(\"every result has status 'In Planung'\", () => b.forEach(x => pm.expect(x.status).to.eql(\"In Planung\")));",
+                  "pm.test(\"at least one match\", () => pm.expect(b.length).to.be.above(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Filter by field: ?road_fid=1306",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/todos?road_fid=1306"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"every result has road_fid 1306\", () => b.forEach(x => pm.expect(x.road_fid).to.eql(1306)));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Operator _gte: ?road_fid_gte=1500",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/todos?road_fid_gte=1500"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"every result road_fid >= 1500\", () => b.forEach(x => pm.expect(x.road_fid).to.be.at.least(1500)));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Operator _like: ?title_like=Instand",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/todos?title_like=Instand"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"every result title matches /Instand/\", () => b.forEach(x => pm.expect(x.title).to.match(/Instand/)));",
+                  "pm.test(\"at least one match\", () => pm.expect(b.length).to.be.above(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Full-text search: ?q=Instandsetzung",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/todos?q=Instandsetzung"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// full-text q= searches across all fields; \"Instandsetzung\" is present in the",
+                  "// seed todos, so this stays data-agnostic across environments.",
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"array returned with at least one hit\", () => { pm.expect(b).to.be.an(\"array\"); pm.expect(b.length).to.be.above(0); });",
+                  "pm.test(\"every hit references the query term\", () => b.forEach(x => pm.expect(JSON.stringify(x).toLowerCase()).to.include(\"instandsetzung\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sort: ?_sort=road_fid&_order=desc",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/todos?_sort=road_fid&_order=desc"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"sorted by road_fid descending\", () => {",
+                  "    const ids = b.map(x => x.road_fid);",
+                  "    const sorted = [...ids].sort((a, z) => z - a);",
+                  "    pm.expect(ids).to.eql(sorted);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pagination: ?_page=1&_limit=2",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/todos?_page=1&_limit=2"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "const total = parseInt(pm.response.headers.get(\"X-Total-Count\"));",
+                  "pm.test(\"page holds at most _limit=2 items\", () => pm.expect(b.length).to.be.at.most(2));",
+                  "pm.test(\"page size honours limit vs total\", () => pm.expect(b.length).to.eql(Math.min(2, total)));",
+                  "pm.test(\"X-Total-Count header present and consistent\", () => {",
+                  "    pm.expect(pm.response.headers.has(\"X-Total-Count\")).to.be.true;",
+                  "    pm.expect(total).to.be.at.least(b.length);",
+                  "});",
+                  "pm.test(\"Link header present (rel navigation)\", () => pm.expect(pm.response.headers.has(\"Link\")).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Slice: ?_start=0&_end=3",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/todos?_start=0&_end=3"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "const total = parseInt(pm.response.headers.get(\"X-Total-Count\"));",
+                  "pm.test(\"slice returns at most (_end - _start) = 3 items\", () => pm.expect(b.length).to.be.at.most(3));",
+                  "pm.test(\"slice size honours range vs total\", () => pm.expect(b.length).to.eql(Math.min(3, total)));",
+                  "pm.test(\"X-Total-Count header present\", () => pm.expect(pm.response.headers.has(\"X-Total-Count\")).to.be.true);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. POST /todos - happy path (self-cleaning)",
+      "item": [
+        {
+          "name": "POST /todos - create valid todo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/todos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\": \"QA Newman test todo\", \"description\": \"created by automated test\", \"status\": \"In Planung\", \"author\": \"qa.newman@example.com\", \"road_fid\": 1306}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 201 Created\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Location header points to new resource\", () => pm.expect(pm.response.headers.has(\"Location\")).to.be.true);",
+                  "const b = pm.response.json();",
+                  "pm.test(\"server assigned a numeric id\", () => pm.expect(b.id).to.be.a(\"number\"));",
+                  "pm.test(\"echoes posted fields\", () => {",
+                  "    pm.expect(b.title).to.eql(\"QA Newman test todo\");",
+                  "    pm.expect(b.road_fid).to.eql(1306);",
+                  "});",
+                  "pm.collectionVariables.set(\"createdTodoId\", b.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET created todo - verify persisted",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/todos/{{createdTodoId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"persisted with correct id and title\", () => {",
+                  "    pm.expect(b.id).to.eql(pm.collectionVariables.get(\"createdTodoId\"));",
+                  "    pm.expect(b.title).to.eql(\"QA Newman test todo\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE created todo - cleanup",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/todos/{{createdTodoId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET deleted todo -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/todos/{{createdTodoId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 404 after deletion\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. POST /todos - negative & edge cases",
+      "item": [
+        {
+          "name": "POST empty body {} - accepted, NO validation (FINDING)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/todos",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// FINDING: json-server performs no schema validation. An empty todo (no title,",
+                  "// no road_fid) is accepted with 201. A real API should reject with 400.",
+                  "pm.test(\"status is 201 (documents missing validation)\", () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"record created with only an id\", () => pm.expect(b.id).to.be.a(\"number\"));",
+                  "pm.test(\"FINDING: mandatory fields (title/road_fid) NOT enforced\", () => {",
+                  "    pm.expect(b).to.not.have.property(\"title\");",
+                  "    pm.expect(b).to.not.have.property(\"road_fid\");",
+                  "});",
+                  "pm.collectionVariables.set(\"emptyTodoId\", b.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cleanup empty todo",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/todos/{{emptyTodoId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"cleanup deletes empty todo (200)\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST duplicate id (id:1) -> 500",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/todos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"id\": 1, \"title\": \"duplicate id attempt\", \"road_fid\": 1}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 500 for duplicate id\", () => pm.response.to.have.status(500));",
+                  "pm.test(\"error mentions duplicate id\", () => pm.expect(pm.response.text().toLowerCase()).to.include(\"duplicate id\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST malformed JSON -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/todos",
+            "body": {
+              "mode": "raw",
+              "raw": "{ this is not valid json",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 400 for malformed JSON body\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST wrong Content-Type (text/plain) - body dropped (FINDING)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "text/plain"
+              }
+            ],
+            "url": "{{baseUrl}}/todos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\": \"sent as text/plain\", \"road_fid\": 42}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// FINDING: with a non-JSON Content-Type the body is silently ignored; the",
+                  "// record is created empty (only an id) instead of returning 415/400.",
+                  "pm.test(\"status is 201\", () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"FINDING: payload silently dropped, no title stored\", () => pm.expect(b).to.not.have.property(\"title\"));",
+                  "pm.collectionVariables.set(\"textTodoId\", b.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cleanup text/plain todo",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/todos/{{textTodoId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"cleanup deletes text/plain todo (200)\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Undocumented methods (PUT / PATCH / DELETE)",
+      "item": [
+        {
+          "name": "Setup: create todo for CRUD",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/todos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\": \"crud target\", \"status\": \"open\", \"road_fid\": 1997}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"created (201)\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"crudTodoId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /todos/:id - full replace (undocumented, works)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/todos/{{crudTodoId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\": \"crud replaced\", \"status\": \"done\", \"road_fid\": 2000}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// README only documents GET/POST; PUT is available but undocumented (FINDING).",
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"resource fully replaced\", () => { pm.expect(b.title).to.eql(\"crud replaced\"); pm.expect(b.road_fid).to.eql(2000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /todos/:id - partial update (undocumented, works)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/todos/{{crudTodoId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"status\": \"archived\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"only status changed, title preserved\", () => { pm.expect(b.status).to.eql(\"archived\"); pm.expect(b.title).to.eql(\"crud replaced\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /todos/:id - (undocumented, works) + cleanup",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/todos/{{crudTodoId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /todos/888888 - non-existing -> 404 (no upsert)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/todos/888888",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\": \"should not be created\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 404 (PUT does not create missing resources)\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "7. Errors, methods & CORS",
+      "item": [
+        {
+          "name": "GET /nonexistent -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/nonexistent"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"unknown resource returns 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /roads -> 404 (safe: object resource, no id)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/roads"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "CORS - Access-Control-Allow-Origin reflected",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Origin",
+                "value": "http://localhost:5173"
+              }
+            ],
+            "url": "{{baseUrl}}/todos"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"ACAO header reflects the request Origin\", () => pm.expect(pm.response.headers.get(\"Access-Control-Allow-Origin\")).to.eql(\"http://localhost:5173\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "CORS - OPTIONS preflight",
+          "request": {
+            "method": "OPTIONS",
+            "header": [
+              {
+                "key": "Origin",
+                "value": "http://localhost:5173"
+              },
+              {
+                "key": "Access-Control-Request-Method",
+                "value": "POST"
+              }
+            ],
+            "url": "{{baseUrl}}/todos"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"preflight returns 204\", () => pm.response.to.have.status(204));",
+                  "pm.test(\"Allow-Methods advertises POST\", () => pm.expect(pm.response.headers.get(\"Access-Control-Allow-Methods\")).to.include(\"POST\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "createdTodoId",
+      "value": ""
+    },
+    {
+      "key": "emptyTodoId",
+      "value": ""
+    },
+    {
+      "key": "textTodoId",
+      "value": ""
+    },
+    {
+      "key": "crudTodoId",
+      "value": ""
+    }
+  ]
+}
