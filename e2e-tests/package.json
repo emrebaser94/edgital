@@ -1,0 +1,35 @@
+{
+  "name": "road-overview-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Serenity/JS + Playwright + Cucumber E2E tests for the Road Overview SUT",
+  "engines": {
+    "node": "22.x || 24.x || >=26"
+  },
+  "scripts": {
+    "clean": "rimraf target",
+    "pretest": "node scripts/check-sut.js",
+    "test": "failsafe clean test:e2e test:report",
+    "test:e2e": "cucumber-js",
+    "test:report": "serenity-bdd run --features ./features",
+    "serenity:update": "serenity-bdd update",
+    "probe": "ts-node scripts/probe.ts"
+  },
+  "devDependencies": {
+    "@cucumber/cucumber": "^13.0.0",
+    "@serenity-js/assertions": "^3.47.2",
+    "@serenity-js/console-reporter": "^3.47.2",
+    "@serenity-js/core": "^3.47.2",
+    "@serenity-js/cucumber": "^3.47.2",
+    "@serenity-js/playwright": "^3.47.2",
+    "@serenity-js/rest": "^3.47.2",
+    "@serenity-js/serenity-bdd": "^3.47.2",
+    "@serenity-js/web": "^3.47.2",
+    "@types/node": "^22.0.0",
+    "npm-failsafe": "^1.3.0",
+    "playwright": "^1.63.0",
+    "rimraf": "^5.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.0"
+  }
+}
