@@ -47,7 +47,7 @@ jobs:
       # --- Toolchains ---
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24     # cucumber@13 verlangt 22/24/>=26 (siehe e2e-tests/.nvmrc)
 
       - uses: actions/setup-java@v4     # Serenity-BDD-Report-CLI ist JVM-basiert
         with:
