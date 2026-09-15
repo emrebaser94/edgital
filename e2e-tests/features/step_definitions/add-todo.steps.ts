@@ -1,48 +1,44 @@
 import { Then, When } from '@cucumber/cucumber';
-import { actorCalled, Duration, Wait } from '@serenity-js/core';
+import { Actor, Duration } from '@serenity-js/core';
 import { contain, Ensure, equals, isTrue } from '@serenity-js/assertions';
-import { By, isVisible, Navigate, PageElement } from '@serenity-js/web';
+import { isVisible } from '@serenity-js/web';
 
-import { RoadMap } from '../../src/screenplay/map';
-import { fillAndSaveTodo, TodoModal } from '../../src/screenplay/todoModal';
-import { ROAD_WITHOUT_TODO, StoredTodoAuthors, TodosForRoad } from '../../src/api';
+import { ROAD_WITHOUT_TODO } from '../../src/model';
+import { StoredTodoAuthors, TodoActionButtonLabel, TodoTitleIsEditable } from '../../src/screenplay/questions';
+import { FetchTodosForRoad, FillAndSaveTodo, OpenTodoFormForRoad, OpenTodosPage } from '../../src/screenplay/tasks';
+import { TodosPage } from '../../src/screenplay/ui';
 
-const todosTableCellContaining = (text: string) =>
-  PageElement.located(By.cssContainingText('td', text)).describedAs(`Todos cell "${text}"`);
-
-When('Tester clicks on the road without an existing Todo', () =>
-  actorCalled('Tester').attemptsTo(
-    RoadMap.clickRoad(ROAD_WITHOUT_TODO.mapIndex),
-    Wait.upTo(Duration.ofSeconds(10)).until(TodoModal.heading(), isVisible()),
+When('{pronoun} clicks on a road that has no Todo yet', (actor: Actor) =>
+  actor.attemptsTo(
+    OpenTodoFormForRoad(ROAD_WITHOUT_TODO.mapIndex),
   ));
 
-When('Tester fills in the Todo form with description {string}, status {string} and author {string}',
-  (description: string, status: string, author: string) =>
-    actorCalled('Tester').attemptsTo(
-      fillAndSaveTodo({ description, status, author }),
+When('{pronoun} saves a Todo with description {string}, status {string} and author {string}',
+  (actor: Actor, description: string, status: string, author: string) =>
+    actor.attemptsTo(
+      FillAndSaveTodo({ description, status, author }),
     ));
 
-Then('the backend stores a Todo for that road authored by {string}', (author: string) =>
-  actorCalled('Tester').attemptsTo(
-    TodosForRoad(ROAD_WITHOUT_TODO.fid),
+Then('{pronoun} should find a Todo authored by {string} stored for that road', (actor: Actor, author: string) =>
+  actor.attemptsTo(
+    FetchTodosForRoad(ROAD_WITHOUT_TODO.fid),
     Ensure.that(StoredTodoAuthors(), contain(author)),
   ));
 
-Then('the Todos overview page lists a Todo authored by {string}', (author: string) =>
-  actorCalled('Tester').attemptsTo(
-    Navigate.to('/todos'),
-    Wait.upTo(Duration.ofSeconds(10)).until(todosTableCellContaining(author), isVisible()),
-    Ensure.that(todosTableCellContaining(author), isVisible()),
+Then('{pronoun} should see a Todo authored by {string} on the Todos overview page', (actor: Actor, author: string) =>
+  actor.attemptsTo(
+    OpenTodosPage(),
+    Ensure.eventually(TodosPage.cellContaining(author), isVisible()).timeoutAfter(Duration.ofSeconds(10)),
   ));
 
 // --- @defect scenarios: assert the REQUIRED behaviour, so they fail on purpose ---
 
-Then('the Todo form action button should read {string}', (expected: string) =>
-  actorCalled('Tester').attemptsTo(
-    Ensure.that(TodoModal.actionButtonLabel(), equals(expected)),
+Then('{pronoun} should see the Todo form action button labelled {string}', (actor: Actor, expected: string) =>
+  actor.attemptsTo(
+    Ensure.that(TodoActionButtonLabel(), equals(expected)),
   ));
 
-Then('the Todo title field should be editable', () =>
-  actorCalled('Tester').attemptsTo(
-    Ensure.that(TodoModal.titleIsEditable(), isTrue()),
+Then('{pronoun} should be able to edit the Todo title', (actor: Actor) =>
+  actor.attemptsTo(
+    Ensure.that(TodoTitleIsEditable(), isTrue()),
   ));

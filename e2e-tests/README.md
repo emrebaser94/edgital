@@ -67,6 +67,32 @@ URLs pro Lauf überschreibbar:
 BASE_URL=http://127.0.0.1:5173 API_URL=http://127.0.0.1:3000 npm test
 ```
 
+## Tags
+
+Jedes Szenario trägt einen **Bereichs-Tag** und einen **Anforderungs-Tag**.
+Tags über `Feature:` gelten für alle Szenarien der Datei.
+
+| Tag | Bedeutung | Szenarien |
+|---|---|---|
+| `@todos` | Todos erfassen (`add-todo.feature`) – steuert zusätzlich den Cleanup-Hook in `features/support/hooks.ts`, daher nicht umbenennen | 3 |
+| `@map` | Karte, Bewertung & Hover (`map-evaluation.feature`, `road-hover.feature`) | 7 |
+| `@navigation` | Navigation (`navigation.feature`) | 3 |
+| `@statistics` | Statistik-Seite (`statistics.feature`) | 2 |
+| `@req-3` | Anforderung 3 – Straßen nach Bewertung einfärben | 4 |
+| `@req-4` | Anforderung 4 – Legende | 1 |
+| `@req-5` | Anforderung 5 – Hover-Effekt & Tooltip | 3 |
+| `@req-6` | Anforderung 6 – Statistik | 2 |
+| `@req-7` | Anforderung 7 – Todo anlegen | 3 |
+| `@req-8` | Anforderung 8 – Navigation | 3 |
+| `@defect` | bewusst rot, dokumentiert einen Defekt | 5 |
+| `@issue:BUG-01` | Bug-ID aus der Bug-Liste, erscheint im Serenity-Report als Issue | 1 |
+
+```bash
+npx cucumber-js --tags "@map"
+npx cucumber-js --tags "@req-7 and not @defect"
+npx cucumber-js --tags "@statistics or @navigation"
+```
+
 ## Abgedeckte User Flows (mit Traceability zu Abschnitt 4)
 
 | Feature | Flow | Anforderung |
@@ -75,6 +101,7 @@ BASE_URL=http://127.0.0.1:5173 API_URL=http://127.0.0.1:3000 npm test
 | `map-evaluation.feature` | Bewertung im Dropdown wählen, Straßenfarben liegen in der Grade-Palette, Legende vorhanden | Req. 3, 4 |
 | `navigation.feature` | Navbar-Links öffnen Karte/Overview/Statistics/Todos | Req. 8 |
 | `statistics.feature` | Statistik-Seite: Chart, „Total Roads" = 773, **Average GW der UI == aus `/roads` nachgerechnet** | Req. 6 |
+| `road-hover.feature` | Straße hovern → Tooltip mit Road ID, Name, EVNK, ENNK und Note, gegen `/roads` verifiziert; Tooltip und Straßenfarbe nach Wechsel der Bewertung | Req. 5 (3) |
 
 ## Bewusst rote Szenarien (`@defect`)
 
@@ -88,6 +115,8 @@ grünes CI-Gate `--tags "not @defect"` nutzen.
 | 1 | Create-Button beschriftet | Bei neuer Maßnahme „Save" | „Update" (`selectedRoad ? 'Update' : 'Save'`, `selectedRoad` immer gesetzt) | Req. 7 |
 | 2 | Titel bei Neuanlage eingebbar | Titel ist Eingabefeld | Feld mit Straßennamen vorbelegt **und disabled** | Req. 7 |
 | 3 | RISS auswählbar | RISS im Dropdown (Req. 3 nennt RISS explizit; Daten liegen unter `eemi_grade.sub_type_grades.RISS`) | Nur GW/TWGEB/TWOFS/TWRIO/TWSUB/TWEBEN | Req. 3 |
+| 4 | Hover-Tooltip zeigt die gewählte Bewertung (`@issue:BUG-01`) | Nach Wechsel auf TWOFS: `EEMI Grade (twofs): <Note>` | Immer `EEMI Grade (gw): …` – `<GeoJSON>` ohne `key={evaluation}`, die `onEachFeature`-Closure stammt vom ersten Render | Req. 5 |
+| 5 | Straßenfarbe nach Hover | Straße bleibt nach TWOFS eingefärbt | `mouseout` färbt mit `getStyle` des ersten Renders → GW-Farbe; die Karte mischt zwei Bewertungen | Req. 5, 3 |
 
 ## Projektstruktur
 
@@ -97,14 +126,18 @@ e2e-tests/
 │   ├── add-todo.feature
 │   ├── map-evaluation.feature
 │   ├── navigation.feature
+│   ├── road-hover.feature
 │   ├── statistics.feature
 │   ├── step_definitions/         # Steps → Screenplay-Tasks/Questions
-│   └── support/                  # Serenity-Setup, Cucumber-Hooks (Cleanup)
+│   └── support/                  # Serenity-Setup, Parametertypen ({actor}/{pronoun}), Cucumber-Hooks (Cleanup)
 ├── src/
-│   ├── Actors.ts                 # Cast: BrowseTheWeb (Playwright) + CallAnApi (REST)
 │   ├── config.ts                 # baseURL / apiURL (env-überschreibbar)
-│   ├── api.ts                    # REST-Helper für Cleanup + API-Gegencheck
-│   └── screenplay/               # PageElements, Tasks, Questions (map/modal/pages)
+│   ├── model/                    # Testdaten & Typen (Straßen, Todos, Grade-Palette)
+│   └── screenplay/               # Screenplay-Bausteine, ein Baustein pro Datei
+│       ├── actors/               # Cast: BrowseTheWeb (Playwright) + CallAnApi (REST)
+│       ├── ui/                   # PageElements je Seite (RoadMap, TodoModal, StatisticsPage …)
+│       ├── tasks/                # fachliche Abläufe aus Serenity-Interaktionen (OpenRoadMap, InspectRoad, RemoveTodosForRoad …)
+│       └── questions/            # Abfragen für Ensure/Wait (TooltipText, AverageGwGrade …)
 ├── scripts/
 │   ├── check-sut.js              # Fail-fast, wenn SUT nicht läuft
 │   └── probe.ts                  # Explorations-Skript (npm run probe) – kein Test
@@ -114,12 +147,26 @@ e2e-tests/
 
 ### Design-Notizen
 
+- **Screenplay-Akteure im Gherkin:** Die Szenarien sind aus Sicht der Persona
+  *Paul* geschrieben. Die Cucumber-Parametertypen in
+  `features/support/parameters.ts` verbinden Gherkin und Screenplay:
+  `{actor}` (`Given Paul has opened …`) holt den Akteur per `actorCalled`
+  auf die Bühne, `{pronoun}` (`he`/`she`/`they`, `When he clicks …`) greift
+  per `actorInTheSpotlight()` auf den zuletzt genannten Akteur zurück. Der
+  Report liest sich dadurch als „Paul opens … / he should see …". Die
+  Cleanup-Hooks nutzen einen eigenen Hintergrund-Akteur (`Test Data Manager`).
 - **Idempotent & self-cleaning:** Vor/Nach den `@todos`-Szenarien werden alle
   Todos von Straße `fid 1307` per API entfernt (wie die Newman-Suite), damit
   der Klick garantiert eine **neue** Maßnahme anlegt (`POST`, nicht `PUT`).
-- **Leaflet-Klick:** Straßen sind SVG-`<path>`-Elemente; Playwrights
-  Standard-Actionability scheitert daran, deshalb ein gezielter Force-Click
-  über die native Page (siehe `RoadMap.clickRoad`).
+- **Leaflet-Karte:** Straßen sind SVG-`<path>`-Elemente und werden mit den
+  Serenity-Interaktionen `Click`/`Hover` bedient (`RoadMap.road(index)`), ohne
+  direkten Zugriff auf die Playwright-Page. Der Tooltip hat
+  `pointer-events: none`; Serenitys `isVisible()` prüft per `elementFromPoint`
+  und meldet ihn daher nie sichtbar – `InspectRoad` wartet deshalb mit
+  `isPresent()`.
+- **Dünne Steps:** Step-Definitionen rufen nur Tasks auf und prüfen mit
+  `Ensure` gegen Questions; Warten, Navigation und API-Aufrufe stecken in den
+  Tasks (`OpenTodoFormForRoad`, `InspectRoad`, `FetchRoads` …).
 - **Farbprüfung:** Gegen die vom Browser berechneten `rgb(...)`-Stroke-Werte
   der Grade-Palette.
 

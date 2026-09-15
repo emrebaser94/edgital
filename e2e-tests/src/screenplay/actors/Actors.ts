@@ -3,7 +3,7 @@ import { BrowseTheWebWithPlaywright } from '@serenity-js/playwright';
 import { CallAnApi } from '@serenity-js/rest';
 import type { Browser } from 'playwright';
 
-import { SutConfig } from './config';
+import { SutConfig } from '../../config';
 
 /**
  * Every actor in this suite can both drive the browser (Playwright) and talk

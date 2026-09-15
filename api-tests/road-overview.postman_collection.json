@@ -2,7 +2,7 @@
   "info": {
     "name": "Road Overview API - json-server",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "API test collection for the Road Overview json-server backend (base http://localhost:3000). Covers GET /roads, GET/POST /todos plus json-server features (filtering, sorting, pagination, single records) and negative/edge cases. All state-changing tests are self-cleaning (created todos are deleted again), so the collection is idempotent.\n\nNOT executed here (destructive, not recoverable via API): POST /roads returns 201 and OVERWRITES the entire FeatureCollection. See README for the documented reproduction. Assertions were verified empirically against json-server@0.17.4."
+    "description": "API test collection for the Road Overview json-server backend (base http://localhost:3000). Covers GET /roads, GET/POST /todos plus json-server features (filtering, sorting, pagination, single records) and negative/edge cases. All state-changing tests are self-cleaning (created todos are deleted again), so the collection is idempotent.\n\nAssertions check the EXPECTED (correct) behaviour. Known defects are tagged [DEFECT #n] (finding number from README/deck) and FAIL ON PURPOSE - same convention as @defect in the E2E suite. A red run therefore means: these defects still exist.\n\nNOT executed here (destructive, wipes all roads): DEFECT #1 - POST /roads returns 201 and OVERWRITES the entire FeatureCollection. See README for the documented reproduction. Actual behaviour was verified empirically against json-server@0.17.4."
   },
   "item": [
     {
@@ -484,7 +484,7 @@
       "name": "5. POST /todos - negative & edge cases",
       "item": [
         {
-          "name": "POST empty body {} - accepted, NO validation (FINDING)",
+          "name": "[DEFECT #2] POST empty body {} -> 400 expected",
           "request": {
             "method": "POST",
             "header": [
@@ -510,42 +510,22 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// FINDING: json-server performs no schema validation. An empty todo (no title,",
-                  "// no road_fid) is accepted with 201. A real API should reject with 400.",
-                  "pm.test(\"status is 201 (documents missing validation)\", () => pm.response.to.have.status(201));",
-                  "const b = pm.response.json();",
-                  "pm.test(\"record created with only an id\", () => pm.expect(b.id).to.be.a(\"number\"));",
-                  "pm.test(\"FINDING: mandatory fields (title/road_fid) NOT enforced\", () => {",
-                  "    pm.expect(b).to.not.have.property(\"title\");",
-                  "    pm.expect(b).to.not.have.property(\"road_fid\");",
-                  "});",
-                  "pm.collectionVariables.set(\"emptyTodoId\", b.id);"
+                  "// DEFECT #2: no input validation. A todo without title and road_fid must be rejected",
+                  "// with 400. Actual: 201 + record with only an id -> this test fails on purpose.",
+                  "pm.test(\"[DEFECT #2] empty todo (no title/road_fid) is rejected with 400\", () => pm.response.to.have.status(400));",
+                  "// self-cleaning: the server still creates a record while the defect exists -> delete it",
+                  "if (pm.response.code === 201) {",
+                  "    pm.sendRequest({ url: pm.variables.replaceIn(\"{{baseUrl}}/todos/\") + pm.response.json().id, method: \"DELETE\" }, (err, res) => {",
+                  "        pm.test(\"cleanup: empty todo deleted again\", () => { pm.expect(err).to.be.null; pm.expect(res.code).to.eql(200); });",
+                  "    });",
+                  "}"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Cleanup empty todo",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": "{{baseUrl}}/todos/{{emptyTodoId}}"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"cleanup deletes empty todo (200)\", () => pm.response.to.have.status(200));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "POST duplicate id (id:1) -> 500",
+          "name": "[DEFECT #5] POST duplicate id (id:1) -> 409 expected",
           "request": {
             "method": "POST",
             "header": [
@@ -571,15 +551,16 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"status is 500 for duplicate id\", () => pm.response.to.have.status(500));",
-                  "pm.test(\"error mentions duplicate id\", () => pm.expect(pm.response.text().toLowerCase()).to.include(\"duplicate id\"));"
+                  "// DEFECT #5: a duplicate id is a client error (409 Conflict). Actual: 500 Internal",
+                  "// Server Error as HTML page -> this test fails on purpose.",
+                  "pm.test(\"[DEFECT #5] duplicate id is rejected with 409 Conflict\", () => pm.response.to.have.status(409));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "POST malformed JSON -> 400",
+          "name": "[DEFECT #5] POST malformed JSON -> 400 with JSON error body",
           "request": {
             "method": "POST",
             "header": [
@@ -605,14 +586,17 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"status is 400 for malformed JSON body\", () => pm.response.to.have.status(400));"
+                  "// Status 400 is correct. DEFECT #5: the error comes back as an HTML page instead of",
+                  "// JSON, so API clients cannot parse it -> the Content-Type check fails on purpose.",
+                  "pm.test(\"status is 400 for malformed JSON body\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"[DEFECT #5] error response is JSON, not an HTML page\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\"));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "POST wrong Content-Type (text/plain) - body dropped (FINDING)",
+          "name": "[DEFECT #4] POST wrong Content-Type (text/plain) -> 415 expected",
           "request": {
             "method": "POST",
             "header": [
@@ -638,31 +622,15 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// FINDING: with a non-JSON Content-Type the body is silently ignored; the",
-                  "// record is created empty (only an id) instead of returning 415/400.",
-                  "pm.test(\"status is 201\", () => pm.response.to.have.status(201));",
-                  "const b = pm.response.json();",
-                  "pm.test(\"FINDING: payload silently dropped, no title stored\", () => pm.expect(b).to.not.have.property(\"title\"));",
-                  "pm.collectionVariables.set(\"textTodoId\", b.id);"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Cleanup text/plain todo",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": "{{baseUrl}}/todos/{{textTodoId}}"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"cleanup deletes text/plain todo (200)\", () => pm.response.to.have.status(200));"
+                  "// DEFECT #4: with a non-JSON Content-Type the body is silently ignored and an empty",
+                  "// record (only an id) is created. Expected: 415 (or 400) -> this test fails on purpose.",
+                  "pm.test(\"[DEFECT #4] non-JSON Content-Type is rejected with 415 (or 400)\", () => pm.expect(pm.response.code).to.be.oneOf([415, 400]));",
+                  "// self-cleaning: the server still creates a record while the defect exists -> delete it",
+                  "if (pm.response.code === 201) {",
+                  "    pm.sendRequest({ url: pm.variables.replaceIn(\"{{baseUrl}}/todos/\") + pm.response.json().id, method: \"DELETE\" }, (err, res) => {",
+                  "        pm.test(\"cleanup: text/plain todo deleted again\", () => { pm.expect(err).to.be.null; pm.expect(res.code).to.eql(200); });",
+                  "    });",
+                  "}"
                 ]
               }
             }
@@ -734,7 +702,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// README only documents GET/POST; PUT is available but undocumented (FINDING).",
+                  "// Finding #6: README only documents GET/POST. PUT works correctly -> documentation gap, not an API defect, test stays green.",
                   "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
                   "const b = pm.response.json();",
                   "pm.test(\"resource fully replaced\", () => { pm.expect(b.title).to.eql(\"crud replaced\"); pm.expect(b.road_fid).to.eql(2000); });"
@@ -874,32 +842,7 @@
           ]
         },
         {
-          "name": "CORS - Access-Control-Allow-Origin reflected",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Origin",
-                "value": "http://localhost:5173"
-              }
-            ],
-            "url": "{{baseUrl}}/todos"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"ACAO header reflects the request Origin\", () => pm.expect(pm.response.headers.get(\"Access-Control-Allow-Origin\")).to.eql(\"http://localhost:5173\"));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "CORS - OPTIONS preflight",
+          "name": "CORS - preflight from app origin (localhost:5173)",
           "request": {
             "method": "OPTIONS",
             "header": [
@@ -920,8 +863,42 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "// The web app (:5173) calls the API (:3000) cross-origin, so the browser needs these headers.",
                   "pm.test(\"preflight returns 204\", () => pm.response.to.have.status(204));",
+                  "pm.test(\"ACAO allows the app origin\", () => pm.expect(pm.response.headers.get(\"Access-Control-Allow-Origin\")).to.eql(\"http://localhost:5173\"));",
                   "pm.test(\"Allow-Methods advertises POST\", () => pm.expect(pm.response.headers.get(\"Access-Control-Allow-Methods\")).to.include(\"POST\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEFECT #3] CORS - preflight from foreign origin is refused",
+          "request": {
+            "method": "OPTIONS",
+            "header": [
+              {
+                "key": "Origin",
+                "value": "http://evil.example"
+              },
+              {
+                "key": "Access-Control-Request-Method",
+                "value": "POST"
+              }
+            ],
+            "url": "{{baseUrl}}/todos"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// DEFECT #3: json-server runs cors({ origin: true, credentials: true }) -> every origin is",
+                  "// reflected, so ANY website can read and write the API from a user's browser (incl. POST /roads, #1).",
+                  "// Expected: only the app origin is allowed. Actual: foreign origin reflected -> fails on purpose.",
+                  "const acao = pm.response.headers.get(\"Access-Control-Allow-Origin\");",
+                  "pm.test(\"[DEFECT #3] foreign origin gets no Access-Control-Allow-Origin\", () => pm.expect(acao, \"Access-Control-Allow-Origin\").to.not.be.oneOf([\"http://evil.example\", \"*\"]));"
                 ]
               }
             }
@@ -937,14 +914,6 @@
     },
     {
       "key": "createdTodoId",
-      "value": ""
-    },
-    {
-      "key": "emptyTodoId",
-      "value": ""
-    },
-    {
-      "key": "textTodoId",
       "value": ""
     },
     {

@@ -8,12 +8,17 @@ Getestet werden die dokumentierten Endpunkte `GET /roads`, `GET /todos`,
 Paginierung, Einzeldatensätze per ID) und eine Reihe von Negativ- und
 Edge-Cases.
 
-- **34 Requests / 78 Assertions**, in 7 thematischen Ordnern
+- **32 Requests / 77 Assertions**, in 7 thematischen Ordnern
+- **Assertions prüfen das Soll-Verhalten.** Bekannte Defekte sind mit
+  `[DEFECT #n]` markiert und schlagen **bewusst fehl** (5 Assertions, siehe
+  [Bewusst rote Tests](#bewusst-rote-tests-defect-n)) – gleiche Konvention wie
+  `@defect` in den E2E-Tests.
 - **Idempotent & self-cleaning:** jeder erzeugte Todo wird per `DELETE` wieder
-  entfernt – die Collection kann beliebig oft laufen, ohne Testdaten zu
+  entfernt – auch Datensätze, die wegen eines Defekts fälschlich angelegt
+  werden. Die Collection kann beliebig oft laufen, ohne Testdaten zu
   hinterlassen.
-- Alle Erwartungswerte wurden **empirisch** gegen einen lokalen
-  `json-server@0.17.4` verifiziert (nicht nur aus der Doku abgeleitet).
+- Das Ist-Verhalten wurde **empirisch** gegen einen lokalen
+  `json-server@0.17.4` beobachtet (nicht nur aus der Doku abgeleitet).
 
 ## Dateien
 
@@ -21,6 +26,7 @@ Edge-Cases.
 |-------|-------|
 | `road-overview.postman_collection.json` | Die Collection (Postman v2.1) |
 | `road-overview.postman_environment.json` | Environment mit `baseUrl` |
+| `report.html` | Newman-htmlextra-Report des letzten lokalen Laufs |
 
 ## Voraussetzungen
 
@@ -56,6 +62,12 @@ npx newman run road-overview.postman_collection.json \
   --env-var baseUrl=http://127.0.0.1:3001
 ```
 
+> **Erwartetes Ergebnis:** Exit-Code `1` mit genau **5 roten Assertions**
+> (alle `[DEFECT #n]`), solange die Defekte bestehen. Newman meldet
+> 34 Requests: die 32 der Collection plus 2 Cleanup-`DELETE`s, die aus
+> Test-Skripten gesendet werden. Nach einem Fix der Defekte entfallen diese
+> Cleanups (dann 32 Requests / 75 Assertions, alle grün).
+
 ## Abgedeckte Bereiche
 
 1. **GET /roads** – Happy Path (FeatureCollection-Schema, 773 Features),
@@ -68,23 +80,45 @@ npx newman run road-overview.postman_collection.json \
 4. **POST /todos – Happy Path** – Anlegen (201, `Location`, ID-Vergabe),
    Persistenz prüfen, wieder löschen.
 5. **POST /todos – Negativ/Edge** – leerer Body, doppelte ID, kaputtes JSON,
-   falscher `Content-Type`.
+   falscher `Content-Type` – jeweils mit Soll-Erwartung (bewusst rot).
 6. **Undokumentierte Methoden** – `PUT` / `PATCH` / `DELETE` auf `/todos/:id`.
 7. **Fehler, Methoden & CORS** – unbekannte Route, `DELETE /roads`,
-   CORS-Header, `OPTIONS`-Preflight.
+   CORS-Preflight der App-Origin, Preflight einer fremden Origin (bewusst rot).
+
+## Bewusst rote Tests (`[DEFECT #n]`)
+
+Diese Assertions prüfen das **Soll** und scheitern daher absichtlich. Ein roter
+Lauf heißt: der Defekt besteht noch. Wird er behoben, wird der Test ohne
+Änderung grün.
+
+| Finding | Assertion | Soll | Ist |
+|---|---|---|---|
+| #2 | `[DEFECT #2] empty todo (no title/road_fid) is rejected with 400` | `400` | `201`, Datensatz nur mit `id` |
+| #3 | `[DEFECT #3] foreign origin gets no Access-Control-Allow-Origin` | kein ACAO für `http://evil.example` | Origin gespiegelt + `Allow-Credentials: true` |
+| #4 | `[DEFECT #4] non-JSON Content-Type is rejected with 415 (or 400)` | `415` / `400` | `201`, Body verworfen |
+| #5 | `[DEFECT #5] duplicate id is rejected with 409 Conflict` | `409` | `500` |
+| #5 | `[DEFECT #5] error response is JSON, not an HTML page` | `application/json` | `text/html` |
+
+Finding #1 (`POST /roads`) ist **nicht** automatisiert – destruktiv, siehe
+unten.
+
+> Hinweis CI: Das Gate in `.github/workflows/tests.yml` ist dadurch rot,
+> solange die Defekte bestehen – analog zu den `@defect`-Szenarien der
+> E2E-Suite.
 
 ## Gefundene Auffälligkeiten (über die API entdeckt)
 
 Diese Funde wurden beim Bau der Tests empirisch beobachtet:
 
-| # | Schwere | Fund |
-|---|---------|------|
-| 1 | **Kritisch** | `POST /roads` liefert **201** und **überschreibt die komplette FeatureCollection** mit dem geposteten Body (Datenverlust, nicht per API wiederherstellbar). Erwartet: `404`/`405`. |
-| 2 | **Hoch** | **Keine Eingabevalidierung** bei `POST /todos`: ein leerer Body `{}` oder ein Todo ohne Pflichtfelder (`title`, `road_fid`) wird mit `201` akzeptiert. |
-| 3 | **Mittel** | Falscher `Content-Type` (z. B. `text/plain`) → Body wird **stillschweigend verworfen**, es entsteht ein leerer Datensatz (`{id:N}`). Erwartet: `415`/`400`. |
-| 4 | **Niedrig** | README dokumentiert nur `GET`/`POST /todos`; tatsächlich sind auch `PUT`, `PATCH`, `DELETE /todos/:id` verfügbar (undokumentiert). |
-| 5 | **Info** | `/roads` ist ein Objekt (keine Array-Ressource) → Filtern/Sortieren/Paginierung **wirken nicht**, `X-Total-Count` fehlt, `GET /roads/:id → 404`. |
-| 6 | **Info** | Doppelte ID → `500` (statt `409`); kaputtes JSON → `400` als HTML-Fehlerseite (kein JSON). |
+| # | Schwere | Fund | Test |
+|---|---------|------|------|
+| 1 | **Kritisch** | `POST /roads` liefert **201** und **überschreibt die komplette FeatureCollection** mit dem geposteten Body (Datenverlust, nicht per API wiederherstellbar). Erwartet: `404`/`405`. | manuell (destruktiv) |
+| 2 | **Hoch** | **Keine Eingabevalidierung** bei `POST /todos`: ein leerer Body `{}` (ohne `title` und `road_fid`) wird mit `201` akzeptiert. | `[DEFECT #2]` rot |
+| 3 | **Mittel** | **CORS erlaubt jede Origin:** json-server läuft mit `cors({ origin: true, credentials: true })` und spiegelt jede `Origin` inkl. `Access-Control-Allow-Credentials: true`. Jede Webseite kann damit aus dem Browser lesen und schreiben – auch `POST /roads` (#1). Erwartet: nur die App-Origin. | `[DEFECT #3]` rot |
+| 4 | **Mittel** | Falscher `Content-Type` (z. B. `text/plain`) → Body wird **stillschweigend verworfen**, es entsteht ein leerer Datensatz (`{id:N}`). Erwartet: `415`/`400`. | `[DEFECT #4]` rot |
+| 5 | **Niedrig** | Schwache Fehlersemantik: doppelte ID → `500` (statt `409`); Fehler kommen als HTML-Seite statt JSON (z. B. kaputtes JSON → `400` `text/html`). | `[DEFECT #5]` rot (2×) |
+| 6 | **Niedrig** | README dokumentiert nur `GET`/`POST /todos`; tatsächlich sind auch `PUT`, `PATCH`, `DELETE /todos/:id` verfügbar (undokumentiert, das Frontend nutzt `PUT` und `DELETE`). Doku-Lücke, die API selbst funktioniert. | grün |
+| 7 | **Info** | `/roads` ist ein Objekt (keine Array-Ressource) → Filtern/Sortieren/Paginierung **wirken nicht**, `X-Total-Count` fehlt, `GET /roads/:id → 404`. | grün (Limitierung dokumentiert) |
 
 > ⚠️ **Fund #1 (`POST /roads`) ist bewusst NICHT Teil des automatischen
 > Laufs**, weil er die Datenbank zerstört und nicht per API wiederherstellbar
@@ -100,7 +134,9 @@ Diese Funde wurden beim Bau der Tests empirisch beobachtet:
 ## KI-Einsatz (Transparenz, gem. Aufgabenstellung Abschnitt 6)
 
 Diese Collection wurde mit **Claude Code** erstellt. Vorgehen: der json-server
-wurde lokal gestartet und jedes erwartete Verhalten (Statuscodes, Header,
-Fehlerfälle) per `curl` real beobachtet; die Assertions prüfen dieses
-beobachtete Verhalten. Anschließend per Newman verifiziert (2× grün,
-34 Requests / 78 Assertions, self-cleaning bestätigt).
+wurde lokal gestartet und jedes Verhalten (Statuscodes, Header, Fehlerfälle)
+per `curl` real beobachtet. Die Assertions prüfen das **Soll-Verhalten**;
+Abweichungen sind als `[DEFECT #n]` markiert und schlagen bewusst fehl.
+Verifiziert per Newman gegen eine isolierte json-server-Instanz
+(32 Requests / 77 Assertions / 5 bewusst rot; self-cleaning bestätigt – die
+Todo-Liste ist vor und nach dem Lauf identisch).

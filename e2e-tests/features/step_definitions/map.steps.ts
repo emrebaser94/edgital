@@ -1,28 +1,29 @@
 import { DataTable, Then, When } from '@cucumber/cucumber';
-import { actorCalled } from '@serenity-js/core';
+import { Actor } from '@serenity-js/core';
 import { contain, Ensure, equals, includes } from '@serenity-js/assertions';
 
-import { evaluationOptionLabels, legendText, RoadMap, roadColoursOutsidePalette } from '../../src/screenplay/map';
+import { EvaluationOptionLabels, LegendText, RoadColoursOutsidePalette } from '../../src/screenplay/questions';
+import { SelectEvaluation } from '../../src/screenplay/tasks';
 
-When('Tester selects the {string} evaluation', (evaluation: string) =>
-  actorCalled('Tester').attemptsTo(
-    RoadMap.selectEvaluation(evaluation),
+When('{pronoun} selects the {string} evaluation', (actor: Actor, evaluation: string) =>
+  actor.attemptsTo(
+    SelectEvaluation(evaluation),
   ));
 
-Then('the map legend shows the grade ranges:', (table: DataTable) => {
+Then('{pronoun} should see these grade ranges in the map legend:', (actor: Actor, table: DataTable) => {
   const ranges = table.raw().map((row) => row[0]);
-  return actorCalled('Tester').attemptsTo(
-    ...ranges.map((range) => Ensure.that(legendText(), includes(range))),
+  return actor.attemptsTo(
+    ...ranges.map((range) => Ensure.that(LegendText(), includes(range))),
   );
 });
 
-Then('every visible road is coloured using a grade-palette colour', () =>
-  actorCalled('Tester').attemptsTo(
-    // roadColoursOutsidePalette returns the offending colours — expect none.
-    Ensure.that(roadColoursOutsidePalette(60), equals([])),
+Then('{pronoun} should see every visible road coloured with a grade-palette colour', (actor: Actor) =>
+  actor.attemptsTo(
+    // RoadColoursOutsidePalette returns the offending colours — expect none.
+    Ensure.that(RoadColoursOutsidePalette(60), equals([])),
   ));
 
-Then('the evaluation dropdown offers the option {string}', (option: string) =>
-  actorCalled('Tester').attemptsTo(
-    Ensure.that(evaluationOptionLabels(), contain(option)),
+Then('{pronoun} should be able to pick the {string} evaluation', (actor: Actor, option: string) =>
+  actor.attemptsTo(
+    Ensure.that(EvaluationOptionLabels(), contain(option)),
   ));
