@@ -44,8 +44,8 @@ Stop the stack with `Ctrl+C`, or `docker compose down` if you started it detache
 1. Start the API first (in one terminal):
    ```
    cd api
-   npm install -g json-server@0.17.4
-   json-server -p 3000 db.json
+   npm ci
+   npm start
    ```
    API is now reachable under http://localhost:3000/
 2. In a second terminal, start the frontend:

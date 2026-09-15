@@ -1,0 +1,13 @@
+{
+  "name": "edgital-json-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "json-server for the Road Overview app with validation, JSON errors and a CORS allowlist",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "json-server": "0.17.4"
+  }
+}
