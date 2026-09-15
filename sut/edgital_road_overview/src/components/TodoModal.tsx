@@ -18,7 +18,9 @@ interface Todo {
 
 const TodoModal: React.FC<TodoModalProps> = ({ isOpen, onClose, onSave, selectedRoad }) => {
   // State variables for form fields
-  const [title, setTitle] = useState(selectedRoad ? selectedRoad.title : '');
+  const [title, setTitle] = useState(selectedRoad?.title ?? '');
+  // A todo that already exists has a server-assigned id; a new one does not.
+  const isExistingTodo = !!selectedRoad?.id;
   const [description, setDescription] = useState(selectedRoad ? selectedRoad.description : '');
   const [status, setStatus] = useState(selectedRoad ? selectedRoad.status : '');
   const [author, setAuthor] = useState(selectedRoad ? selectedRoad.author : '');
@@ -53,7 +55,6 @@ const TodoModal: React.FC<TodoModalProps> = ({ isOpen, onClose, onSave, selected
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full p-2 border rounded-md focus:outline-none focus:ring focus:ring-gray-400 mb-2"
-              disabled={!!selectedRoad?.title} // Disable input if selectedRoad is provided
             />
             <textarea
               placeholder="Description"
@@ -88,8 +89,8 @@ const TodoModal: React.FC<TodoModalProps> = ({ isOpen, onClose, onSave, selected
             <button className="p-2 text-black rounded-l-md focus:outline-none cursor-pointer" onClick={onClose}>
               Close
             </button>
-            <button className="ml-2 p-2 text-white-700 bg-gray-200 rounded-r-md hover:bg-orange-300 focus:outline-none cursor-pointer" onClick={handleSave}>
-              {selectedRoad ? 'Update' : 'Save'}
+            <button className="ml-2 p-2 text-white-700 bg-gray-200 rounded-r-md hover:bg-orange-300 focus:outline-none cursor-pointer" onClick={handleSave} disabled={!title.trim()}>
+              {isExistingTodo ? 'Update' : 'Save'}
             </button>
           </div>
         </div>

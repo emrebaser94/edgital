@@ -170,8 +170,14 @@ const RoadEvaluation = () => {
     }
   };
 
+  // RISS is not a top-level evaluation like gw or twofs; it lives in sub_type_grades.
+  const gradeOf = (feature: GeoJSON.Feature<any, any>, selectedEvaluation: string) =>
+    selectedEvaluation === 'riss'
+      ? feature.properties.eemi_grade.sub_type_grades?.RISS
+      : feature.properties.eemi_grade[selectedEvaluation];
+
   const getStyle = (feature: GeoJSON.Feature<any, any> | null | undefined) => {
-    const eemi = feature?.properties.eemi_grade[evaluation];
+    const eemi = feature ? gradeOf(feature, evaluation) : undefined;
     let color = 'blue'; // Default color
     if (eemi >= 1 && eemi < 1.5) {
       color = 'blue';
@@ -238,7 +244,7 @@ const RoadEvaluation = () => {
             <p>Name: ${feature.properties.name ?? '-'}</p>
             <p>EVNK: ${feature.properties.evnk}</p>
             <p>ENNK: ${feature.properties.ennk}</p>
-            <p>EEMI Grade (${evaluation}): ${feature.properties.eemi_grade[evaluation]}</p>
+            <p>EEMI Grade (${evaluation}): ${gradeOf(feature, evaluation)}</p>
           </div>
         `).openTooltip();
       },
@@ -275,6 +281,7 @@ const RoadEvaluation = () => {
             <option className='p-2 text-sm' value="twrio">TWRIO</option>
             <option className='p-2 text-sm' value="twsub">TWSUB</option>
             <option className='p-2 text-sm' value="tweben">TWEBEN</option>
+            <option className='p-2 text-sm' value="riss">RISS</option>
           </select>
 
             <div className="flex items-center ml-auto">
@@ -297,8 +304,11 @@ const RoadEvaluation = () => {
             style={{ height: 'calc(100vh - 240px)' }}
           >
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            {/* key: remount the layer when the evaluation changes, so onEachFeature
+                (tooltip and mouseout style) uses the current evaluation, not the first one */}
             {geojsonData &&
             <GeoJSON
+              key={evaluation}
               data={geojsonData}
               style={getStyle}
               interactive={true}
