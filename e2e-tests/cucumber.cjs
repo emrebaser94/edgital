@@ -16,7 +16,10 @@ module.exports = {
     format: [
       '@serenity-js/cucumber',
     ],
-    paths: ['features/**/*.feature'],
+    // No `paths` here: Cucumber 13 appends CLI paths to configured ones instead
+    // of replacing them, so running a single scenario from the IDE
+    // (`cucumber-js features/add-todo.feature:14`) would still run the whole
+    // suite. Without it, Cucumber falls back to its default feature glob.
     publishQuiet: true,
   },
 };

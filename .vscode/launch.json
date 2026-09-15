@@ -1,0 +1,41 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Cucumber: current scenario",
+      "type": "node",
+      "request": "launch",
+      "runtimeVersion": "24.21.0",
+      "cwd": "${workspaceFolder}/e2e-tests",
+      "program": "${workspaceFolder}/e2e-tests/node_modules/.bin/cucumber-js",
+      "args": ["${file}:${lineNumber}"],
+      "env": { "HEADLESS": "false" },
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Cucumber: current feature file",
+      "type": "node",
+      "request": "launch",
+      "runtimeVersion": "24.21.0",
+      "cwd": "${workspaceFolder}/e2e-tests",
+      "program": "${workspaceFolder}/e2e-tests/node_modules/.bin/cucumber-js",
+      "args": ["${file}"],
+      "env": { "HEADLESS": "false" },
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Cucumber: all scenarios (not @defect)",
+      "type": "node",
+      "request": "launch",
+      "runtimeVersion": "24.21.0",
+      "cwd": "${workspaceFolder}/e2e-tests",
+      "program": "${workspaceFolder}/e2e-tests/node_modules/.bin/cucumber-js",
+      "args": ["--tags", "not @defect"],
+      "env": { "HEADLESS": "false" },
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ]
+}

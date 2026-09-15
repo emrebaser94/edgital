@@ -1,0 +1,11 @@
+{
+  "cucumber.features": ["e2e-tests/features/**/*.feature"],
+  "cucumber.glue": [
+    "e2e-tests/features/**/*.ts",
+    "e2e-tests/src/**/*.ts"
+  ],
+  "cucumber.parameterTypes": [
+    { "name": "actor", "regexp": "[A-Z][a-z]+" },
+    { "name": "pronoun", "regexp": "he|she|they|his|her|their" }
+  ]
+}
