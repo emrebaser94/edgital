@@ -1,9 +1,9 @@
 import { Given } from '@cucumber/cucumber';
-import { actorCalled } from '@serenity-js/core';
+import { Actor } from '@serenity-js/core';
 
-import { RoadMap } from '../../src/screenplay/map';
+import { OpenRoadMap } from '../../src/screenplay/tasks';
 
-Given('the Road Overview map is loaded', () =>
-  actorCalled('Tester').attemptsTo(
-    RoadMap.isLoaded(),
+Given('{actor} has opened the Road Overview map', (actor: Actor) =>
+  actor.attemptsTo(
+    OpenRoadMap(),
   ));

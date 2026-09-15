@@ -5,7 +5,7 @@ import { SerenityBDDReporter } from '@serenity-js/serenity-bdd';
 import { Photographer, TakePhotosOfFailures } from '@serenity-js/web';
 import { Browser, chromium } from 'playwright';
 
-import { Actors } from '../../src/Actors';
+import { Actors } from '../../src/screenplay/actors';
 import { config } from '../../src/config';
 
 let browser: Browser;

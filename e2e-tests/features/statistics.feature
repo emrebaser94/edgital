@@ -1,3 +1,4 @@
+@statistics @req-6
 Feature: Review aggregate road statistics
   As a user
   I want average statistics over all roads with a chart and a table
@@ -6,12 +7,13 @@ Feature: Review aggregate road statistics
   # Traceability: Requirement 6 (sidebar/table with diagrams showing average
   # statistics over all roads, e.g. average GW).
 
+  Background:
+    Given Paul has opened the Statistics page
+
   Scenario: The statistics page summarises all roads
-    Given Tester is on the Statistics page
-    Then the statistics chart is displayed
-    And the statistics table reports 773 total roads
-    And the statistics table reports an average GW value
+    Then he should see the statistics chart
+    And he should see 773 total roads in the statistics table
+    And he should see an average GW value in the statistics table
 
   Scenario: The average GW shown in the UI matches the value computed from the API
-    Given Tester is on the Statistics page
-    Then the displayed Average GW matches the value computed from the roads endpoint
+    Then he should see an Average GW matching the value computed from the roads endpoint

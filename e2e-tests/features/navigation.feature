@@ -1,3 +1,4 @@
+@navigation @req-8
 Feature: Navigate between the application pages
   As a user
   I want a navigation bar linking to the different pages
@@ -7,12 +8,12 @@ Feature: Navigate between the application pages
   # overview, evaluations/statistics, todos).
 
   Background:
-    Given the Road Overview map is loaded
+    Given Paul has opened the Road Overview map
 
   Scenario Outline: The "<menu>" menu entry opens the matching page
-    When Tester opens "<menu>" from the navigation bar
-    Then the browser address ends with "<path>"
-    And the page shows "<marker>"
+    When he opens "<menu>" from the navigation bar
+    Then he should see the browser address ending with "<path>"
+    And he should see "<marker>" on the page
 
     Examples:
       | menu       | path        | marker      |
