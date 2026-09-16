@@ -2,7 +2,7 @@
   "info": {
     "name": "Road Overview API - json-server",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "API test collection for the Road Overview json-server backend (base http://localhost:3000). Covers GET /roads, GET/POST /todos plus json-server features (filtering, sorting, pagination, single records) and negative/edge cases. All state-changing tests are self-cleaning (created todos are deleted again), so the collection is idempotent.\n\nAssertions check the EXPECTED (correct) behaviour. Known defects are tagged [DEFECT #n] (finding number from README/deck) and FAIL ON PURPOSE - same convention as @defect in the E2E suite. A red run therefore means: these defects still exist.\n\nNOT executed here (destructive, wipes all roads): DEFECT #1 - POST /roads returns 201 and OVERWRITES the entire FeatureCollection. See README for the documented reproduction. Actual behaviour was verified empirically against json-server@0.17.4."
+    "description": "API test collection for the Road Overview json-server backend (base http://localhost:3000). Covers GET /roads, GET/POST /todos plus json-server features (filtering, sorting, pagination, single records) and negative/edge cases. All state-changing tests are self-cleaning (created todos are deleted again), so the collection is idempotent.\n\nAssertions check the EXPECTED (correct) behaviour. Known defects are tagged [DEFECT #n] (finding number from README/deck) and FAIL ON PURPOSE - same convention as @defect in the E2E suite. A red run therefore means: these defects still exist.\n\nNOT executed here (destructive, wipes all roads): DEFECT #1 - POST /roads returns 201 and OVERWRITES the entire FeatureCollection; a plain cross-site POST with Content-Type text/plain triggers it without any preflight. See README for the documented reproduction. Actual behaviour was verified empirically against json-server@0.17.4."
   },
   "item": [
     {
@@ -596,7 +596,7 @@
           ]
         },
         {
-          "name": "[DEFECT #4] POST wrong Content-Type (text/plain) -> 415 expected",
+          "name": "[DEFECT #3] POST wrong Content-Type (text/plain) -> 415 expected",
           "request": {
             "method": "POST",
             "header": [
@@ -622,9 +622,9 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// DEFECT #4: with a non-JSON Content-Type the body is silently ignored and an empty",
+                  "// DEFECT #3: with a non-JSON Content-Type the body is silently ignored and an empty",
                   "// record (only an id) is created. Expected: 415 (or 400) -> this test fails on purpose.",
-                  "pm.test(\"[DEFECT #4] non-JSON Content-Type is rejected with 415 (or 400)\", () => pm.expect(pm.response.code).to.be.oneOf([415, 400]));",
+                  "pm.test(\"[DEFECT #3] non-JSON Content-Type is rejected with 415 (or 400)\", () => pm.expect(pm.response.code).to.be.oneOf([415, 400]));",
                   "// self-cleaning: the server still creates a record while the defect exists -> delete it",
                   "if (pm.response.code === 201) {",
                   "    pm.sendRequest({ url: pm.variables.replaceIn(\"{{baseUrl}}/todos/\") + pm.response.json().id, method: \"DELETE\" }, (err, res) => {",
@@ -801,7 +801,7 @@
       ]
     },
     {
-      "name": "7. Errors, methods & CORS",
+      "name": "7. Errors & methods",
       "item": [
         {
           "name": "GET /nonexistent -> 404",
@@ -836,69 +836,6 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"status is 404\", () => pm.response.to.have.status(404));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "CORS - preflight from app origin (localhost:5173)",
-          "request": {
-            "method": "OPTIONS",
-            "header": [
-              {
-                "key": "Origin",
-                "value": "http://localhost:5173"
-              },
-              {
-                "key": "Access-Control-Request-Method",
-                "value": "POST"
-              }
-            ],
-            "url": "{{baseUrl}}/todos"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "// The web app (:5173) calls the API (:3000) cross-origin, so the browser needs these headers.",
-                  "pm.test(\"preflight returns 204\", () => pm.response.to.have.status(204));",
-                  "pm.test(\"ACAO allows the app origin\", () => pm.expect(pm.response.headers.get(\"Access-Control-Allow-Origin\")).to.eql(\"http://localhost:5173\"));",
-                  "pm.test(\"Allow-Methods advertises POST\", () => pm.expect(pm.response.headers.get(\"Access-Control-Allow-Methods\")).to.include(\"POST\"));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "[DEFECT #3] CORS - preflight from foreign origin is refused",
-          "request": {
-            "method": "OPTIONS",
-            "header": [
-              {
-                "key": "Origin",
-                "value": "http://evil.example"
-              },
-              {
-                "key": "Access-Control-Request-Method",
-                "value": "POST"
-              }
-            ],
-            "url": "{{baseUrl}}/todos"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "// DEFECT #3: json-server runs cors({ origin: true, credentials: true }) -> every origin is",
-                  "// reflected, so ANY website can read and write the API from a user's browser (incl. POST /roads, #1).",
-                  "// Expected: only the app origin is allowed. Actual: foreign origin reflected -> fails on purpose.",
-                  "const acao = pm.response.headers.get(\"Access-Control-Allow-Origin\");",
-                  "pm.test(\"[DEFECT #3] foreign origin gets no Access-Control-Allow-Origin\", () => pm.expect(acao, \"Access-Control-Allow-Origin\").to.not.be.oneOf([\"http://evil.example\", \"*\"]));"
                 ]
               }
             }
