@@ -2,8 +2,9 @@ import { DataTable, Then, When } from '@cucumber/cucumber';
 import { Actor } from '@serenity-js/core';
 import { Ensure, equals, includes } from '@serenity-js/assertions';
 
-import { LegendText, RoadColoursOutsidePalette } from '../../src/screenplay/questions';
-import { SelectEvaluation } from '../../src/screenplay/tasks';
+import { ROAD_FOR_COLOURING } from '../../src/model';
+import { GradeColourFromApi, LegendText, RoadStrokeColour } from '../../src/screenplay/questions';
+import { FetchRoads, SelectEvaluation } from '../../src/screenplay/tasks';
 
 When('{pronoun} selects the {string} evaluation', (actor: Actor, evaluation: string) =>
   actor.attemptsTo(
@@ -17,8 +18,12 @@ Then('{pronoun} should see these grade ranges in the map legend:', (actor: Actor
   );
 });
 
-Then('{pronoun} should see every visible road coloured with a grade-palette colour', (actor: Actor) =>
+Then('{pronoun} should see the reference road coloured by its {string} grade', (actor: Actor, evaluation: string) =>
   actor.attemptsTo(
-    // RoadColoursOutsidePalette returns the offending colours — expect none.
-    Ensure.that(RoadColoursOutsidePalette(60), equals([])),
+    FetchRoads(),
+    Ensure.that(
+      RoadStrokeColour(ROAD_FOR_COLOURING.mapIndex),
+      // The dropdown shows "TWOFS", the API key is "twofs".
+      equals(GradeColourFromApi(ROAD_FOR_COLOURING.fid, evaluation.toLowerCase())),
+    ),
   ));

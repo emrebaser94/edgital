@@ -7,7 +7,6 @@ export * from './GradeLineFromApi';
 export * from './LegendText';
 export * from './PageText';
 export * from './PropertiesOfRoad';
-export * from './RoadColoursOutsidePalette';
 export * from './RoadStrokeColour';
 export * from './StatisticsMetricValue';
 export * from './StoredTodoAuthors';

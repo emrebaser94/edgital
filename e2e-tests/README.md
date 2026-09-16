@@ -77,16 +77,16 @@ Tags über `Feature:` gelten für alle Szenarien der Datei, Tags über
 | Tag | Bedeutung | Szenarien |
 |---|---|---|
 | `@todos` | Todos erfassen (`add-todo.feature`) – steuert zusätzlich den Cleanup-Hook in `features/support/hooks.ts`, daher nicht umbenennen | 5 |
-| `@map` | Karte, Bewertung & Hover (`map-evaluation.feature`, `road-hover.feature`) | 6 |
+| `@map` | Karte, Bewertung & Hover (`map-evaluation.feature`, `road-hover.feature`) | 10 |
 | `@navigation` | Navigation (`navigation.feature`) | 3 |
 | `@statistics` | Statistik-Seite (`statistics.feature`) | 4 |
-| `@req-3` | Anforderung 3 – Straßen nach Bewertung einfärben | 3 |
+| `@req-3` | Anforderung 3 – Straßen nach Bewertung einfärben | 7 |
 | `@req-4` | Anforderung 4 – Legende | 1 |
 | `@req-5` | Anforderung 5 – Hover-Effekt & Tooltip | 3 |
 | `@req-6` | Anforderung 6 – Statistik | 4 |
 | `@req-7` | Anforderung 7 – Todo anlegen und aktualisieren | 5 |
 | `@req-8` | Anforderung 8 – Navigation | 3 |
-| `@TF-1` | Testfall 1 – Straßenzustand nach Bewertungsart auf der Karte beurteilen (`map-evaluation.feature`, `road-hover.feature`) | 6 |
+| `@TF-1` | Testfall 1 – Straßenzustand nach Bewertungsart auf der Karte beurteilen (`map-evaluation.feature`, `road-hover.feature`) | 10 |
 | `@TF-2` | Testfall 2 – Todos für Straßen verwalten (`add-todo.feature`, Navigation zu Todos) | 6 |
 | `@TF-3` | Testfall 3 – Straßendaten sichten und analysieren (`statistics.feature`, Navigation zu Overview/Statistics) | 6 |
 | `@defect` | bewusst rot, dokumentiert einen Defekt | 6 |
@@ -104,7 +104,7 @@ npx cucumber-js --tags "@TF-2"
 | Feature | Flow | Anforderung | Testfall |
 |---|---|---|---|
 | `add-todo.feature` | Straße auf der Karte klicken → Modal → Maßnahme erfassen → per `POST /todos` persistiert; gegen API **und** Todos-Tabelle verifiziert | Req. 7 | TF-2 |
-| `map-evaluation.feature` | Bewertung im Dropdown wählen, Straßenfarben liegen in der Grade-Palette, Legende vorhanden | Req. 3, 4 | TF-1 |
+| `map-evaluation.feature` | Zwischen allen Bewertungen im Dropdown wechseln, Referenzstraße (fid 5646) hat nach jedem Wechsel die Farbe ihrer Note laut `/roads`; Legende vorhanden | Req. 3, 4 | TF-1 |
 | `navigation.feature` | Navbar-Links öffnen Karte/Overview/Statistics/Todos | Req. 8 | TF-2, TF-3 |
 | `statistics.feature` | Statistik-Seite: Chart, „Total Roads" = 773, **Average GW der UI == aus `/roads` nachgerechnet** | Req. 6 | TF-3 |
 | `road-hover.feature` | Straße hovern → Tooltip mit Road ID, Name, EVNK, ENNK und Note, gegen `/roads` verifiziert; Tooltip und Straßenfarbe nach Wechsel der Bewertung | Req. 5 (3) | TF-1 |
@@ -174,8 +174,12 @@ e2e-tests/
 - **Dünne Steps:** Step-Definitionen rufen nur Tasks auf und prüfen mit
   `Ensure` gegen Questions; Warten, Navigation und API-Aufrufe stecken in den
   Tasks (`OpenTodoFormForRoad`, `InspectRoad`, `FetchRoads` …).
-- **Farbprüfung:** Gegen die vom Browser berechneten `rgb(...)`-Stroke-Werte
-  der Grade-Palette.
+- **Farbprüfung:** Der vom Browser berechnete `rgb(...)`-Stroke-Wert einer
+  Straße muss der Palettenfarbe ihrer Note laut `/roads` entsprechen – nicht
+  bloß irgendeiner Palettenfarbe. Die Referenzstraße fid 5646 hat vier
+  verschiedene Farben über die Bewertungen (mehr gibt der Datenbestand nicht
+  her: `twsub` ist immer gleich `gw`, `twgeb`/`tweben` sind immer 1), und die
+  Wechsel-Reihenfolge im Szenario ändert die Farbe bei jedem Schritt.
 
 ## Bekannte Einschränkungen
 
