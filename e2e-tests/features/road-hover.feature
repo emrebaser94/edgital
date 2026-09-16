@@ -1,4 +1,4 @@
-@map @req-5
+@map @req-5 @TF-1
 Feature: Inspect road details by hovering over the map
   As a road maintenance planner
   I want to see a road's attributes and grade when I hover over it

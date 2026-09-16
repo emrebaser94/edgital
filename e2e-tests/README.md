@@ -69,8 +69,10 @@ BASE_URL=http://127.0.0.1:5173 API_URL=http://127.0.0.1:3000 npm test
 
 ## Tags
 
-Jedes Szenario trägt einen **Bereichs-Tag** und einen **Anforderungs-Tag**.
-Tags über `Feature:` gelten für alle Szenarien der Datei.
+Jedes Szenario trägt einen **Bereichs-Tag**, einen **Anforderungs-Tag** und
+einen **Testfall-Tag** (TF-1 bis TF-3 aus der Präsentation, Abschnitt 2).
+Tags über `Feature:` gelten für alle Szenarien der Datei, Tags über
+`Examples:` nur für deren Zeilen.
 
 | Tag | Bedeutung | Szenarien |
 |---|---|---|
@@ -84,6 +86,9 @@ Tags über `Feature:` gelten für alle Szenarien der Datei.
 | `@req-6` | Anforderung 6 – Statistik | 2 |
 | `@req-7` | Anforderung 7 – Todo anlegen und aktualisieren | 5 |
 | `@req-8` | Anforderung 8 – Navigation | 3 |
+| `@TF-1` | Testfall 1 – Straßenzustand nach Bewertungsart auf der Karte beurteilen (`map-evaluation.feature`, `road-hover.feature`) | 7 |
+| `@TF-2` | Testfall 2 – Todos für Straßen verwalten (`add-todo.feature`, Navigation zu Todos) | 6 |
+| `@TF-3` | Testfall 3 – Straßendaten sichten und analysieren (`statistics.feature`, Navigation zu Overview/Statistics) | 4 |
 | `@defect` | bewusst rot, dokumentiert einen Defekt | 7 |
 | `@issue:BUG-01` | Bug-ID aus der Bug-Liste, erscheint im Serenity-Report als Issue | 1 |
 
@@ -91,17 +96,18 @@ Tags über `Feature:` gelten für alle Szenarien der Datei.
 npx cucumber-js --tags "@map"
 npx cucumber-js --tags "@req-7 and not @defect"
 npx cucumber-js --tags "@statistics or @navigation"
+npx cucumber-js --tags "@TF-2"
 ```
 
 ## Abgedeckte User Flows (mit Traceability zu Abschnitt 4)
 
-| Feature | Flow | Anforderung |
-|---|---|---|
-| `add-todo.feature` | Straße auf der Karte klicken → Modal → Maßnahme erfassen → per `POST /todos` persistiert; gegen API **und** Todos-Tabelle verifiziert | Req. 7 |
-| `map-evaluation.feature` | Bewertung im Dropdown wählen, Straßenfarben liegen in der Grade-Palette, Legende vorhanden | Req. 3, 4 |
-| `navigation.feature` | Navbar-Links öffnen Karte/Overview/Statistics/Todos | Req. 8 |
-| `statistics.feature` | Statistik-Seite: Chart, „Total Roads" = 773, **Average GW der UI == aus `/roads` nachgerechnet** | Req. 6 |
-| `road-hover.feature` | Straße hovern → Tooltip mit Road ID, Name, EVNK, ENNK und Note, gegen `/roads` verifiziert; Tooltip und Straßenfarbe nach Wechsel der Bewertung | Req. 5 (3) |
+| Feature | Flow | Anforderung | Testfall |
+|---|---|---|---|
+| `add-todo.feature` | Straße auf der Karte klicken → Modal → Maßnahme erfassen → per `POST /todos` persistiert; gegen API **und** Todos-Tabelle verifiziert | Req. 7 | TF-2 |
+| `map-evaluation.feature` | Bewertung im Dropdown wählen, Straßenfarben liegen in der Grade-Palette, Legende vorhanden | Req. 3, 4 | TF-1 |
+| `navigation.feature` | Navbar-Links öffnen Karte/Overview/Statistics/Todos | Req. 8 | TF-2, TF-3 |
+| `statistics.feature` | Statistik-Seite: Chart, „Total Roads" = 773, **Average GW der UI == aus `/roads` nachgerechnet** | Req. 6 | TF-3 |
+| `road-hover.feature` | Straße hovern → Tooltip mit Road ID, Name, EVNK, ENNK und Note, gegen `/roads` verifiziert; Tooltip und Straßenfarbe nach Wechsel der Bewertung | Req. 5 (3) | TF-1 |
 
 ## Bewusst rote Szenarien (`@defect`)
 

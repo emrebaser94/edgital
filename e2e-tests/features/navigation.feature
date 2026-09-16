@@ -15,8 +15,13 @@ Feature: Navigate between the application pages
     Then he should see the browser address ending with "<path>"
     And he should see "<marker>" on the page
 
-    Examples:
+    @TF-3
+    Examples: Road data pages
       | menu       | path        | marker      |
       | Overview   | /Overview   | FID         |
       | Statistics | /Statistics | Total Roads |
-      | Todos      | /Todos      | ACTIONS     |
+
+    @TF-2
+    Examples: Todo management
+      | menu  | path   | marker  |
+      | Todos | /Todos | ACTIONS |
