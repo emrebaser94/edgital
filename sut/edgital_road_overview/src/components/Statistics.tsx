@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import Chart from 'chart.js/auto';
 
@@ -16,13 +16,25 @@ interface GeoJSONFeature {
   };
 }
 
+interface EemiStatistic {
+  attribute: string;
+  total: number;
+  average: number;
+}
+
 interface StatisticsDisplayMode {
   showTable?: boolean;
 }
 
+// GW is part of the comparison: the requirement names it explicitly.
+const EEMI_ATTRIBUTES = ['gw', 'twgeb', 'twofs', 'twrio', 'twsub', 'tweben'];
+
 const Statistics: React.FC<StatisticsDisplayMode> = ({ showTable = true }) => {
   const [data, setData] = useState<GeoJSONFeature[]>([]);
   const [tableStatistics, setTableStatistics] = useState<any>(null);
+  const [chartStatistics, setChartStatistics] = useState<EemiStatistic[]>([]);
+  // Keep the chart instance so it can be destroyed before the canvas is reused.
+  const chartRef = useRef<Chart | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -39,33 +51,37 @@ const Statistics: React.FC<StatisticsDisplayMode> = ({ showTable = true }) => {
 
   useEffect(() => {
     if (data.length > 0) {
-      const eemiAttributes = ['twgeb', 'twofs', 'twrio', 'twsub', 'tweben'];
-      const eemiStatistics = eemiAttributes.map(attr => {
+      const eemiStatistics = EEMI_ATTRIBUTES.map(attr => {
         const roadsWithAttr = data.filter(road => road.properties.eemi_grade && road.properties.eemi_grade[attr] !== undefined);
         const totalAttrValue = roadsWithAttr.reduce((acc, road) => acc + road.properties.eemi_grade[attr], 0);
         const averageAttrValue = totalAttrValue / roadsWithAttr.length;
         return { attribute: attr, total: totalAttrValue, average: averageAttrValue };
       });
+      setChartStatistics(eemiStatistics);
 
       // Calculate average gw value
       const gwValues = data.map(road => road.properties.eemi_grade['gw']);
       const averageGW = gwValues.reduce((total, value) => total + value, 0) / gwValues.length;
 
-      // Create a chart
+      // Create a chart - drop the previous one first, a canvas can only hold one
       const ctx = document.getElementById('statisticsChart') as HTMLCanvasElement;
-      new Chart(ctx, {
+      chartRef.current?.destroy();
+      chartRef.current = new Chart(ctx, {
         type: 'bar',
         data: {
-          labels: eemiStatistics.map(stat => stat.attribute),
+          labels: eemiStatistics.map(stat => stat.attribute.toUpperCase()),
           datasets: [{
             label: 'Total',
             data: eemiStatistics.map(stat => stat.total),
+            yAxisID: 'yTotal',
             backgroundColor: 'rgba(255, 99, 132, 0.2)',
             borderColor: 'rgba(255, 99, 132, 1)',
             borderWidth: 1
           }, {
             label: 'Average',
             data: eemiStatistics.map(stat => stat.average),
+            // Averages (1-5) would vanish next to the totals, so they get their own axis
+            yAxisID: 'yAverage',
             backgroundColor: 'rgba(54, 162, 235, 0.2)',
             borderColor: 'rgba(54, 162, 235, 1)',
             borderWidth: 1
@@ -79,11 +95,26 @@ const Statistics: React.FC<StatisticsDisplayMode> = ({ showTable = true }) => {
                 text: 'EEMI Attribute'
               }
             },
-            y: {
+            yTotal: {
+              type: 'linear',
+              position: 'left',
               beginAtZero: true,
               title: {
                 display: true,
-                text: 'Value'
+                text: 'Total'
+              }
+            },
+            yAverage: {
+              type: 'linear',
+              position: 'right',
+              beginAtZero: true,
+              suggestedMax: 5,
+              grid: {
+                drawOnChartArea: false
+              },
+              title: {
+                display: true,
+                text: 'Average grade'
               }
             }
           },
@@ -101,6 +132,12 @@ const Statistics: React.FC<StatisticsDisplayMode> = ({ showTable = true }) => {
       setTableStatistics(statistics);
     }
   }, [data]);
+
+  // Release the chart when the component goes away, so the canvas stays reusable
+  useEffect(() => () => {
+    chartRef.current?.destroy();
+    chartRef.current = null;
+  }, []);
 
   const calculateStatistics = (roadsData: GeoJSONFeature[], averageGW: number) => {
     // Initialize variables for statistics
@@ -150,7 +187,34 @@ const Statistics: React.FC<StatisticsDisplayMode> = ({ showTable = true }) => {
       <h2 className="text-lg font-semibold mb-2">EEMI Attributes Comparison</h2>
       <div className={`flex flex-col md:flex-row items-center justify-center ${showTable ? 'md:items-start' : ''}`}>
         <div className={`chart-container mb-4 ${showTable ? 'md:mb-0 md:mr-4 w-full md:w-1/2' : 'w-full'}`}>
-          <canvas id="statisticsChart"></canvas>
+          <canvas
+            id="statisticsChart"
+            role="img"
+            aria-label="Total and average EEMI grade per evaluation"
+          ></canvas>
+          {/* The canvas is pixels only: the same numbers as a table, readable by
+              screen readers and assertable in tests. */}
+          {chartStatistics.length > 0 && (
+            <table className="chart-data table-auto w-full border-collapse border border-gray-200 mt-2 text-sm">
+              <caption className="text-left text-xs text-gray-500 mb-1">Chart values</caption>
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="px-2 py-1 text-left">Evaluation</th>
+                  <th className="px-2 py-1 text-right">Average</th>
+                  <th className="px-2 py-1 text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {chartStatistics.map(stat => (
+                  <tr key={stat.attribute} data-series={stat.attribute}>
+                    <td className="series-label border px-2 py-1">{stat.attribute.toUpperCase()}</td>
+                    <td className="series-average border px-2 py-1 text-right" data-value={stat.average}>{stat.average.toFixed(2)}</td>
+                    <td className="series-total border px-2 py-1 text-right" data-value={stat.total}>{stat.total.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
         {showTable && tableStatistics && (
           <div className="table-container">

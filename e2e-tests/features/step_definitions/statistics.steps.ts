@@ -3,7 +3,12 @@ import { Actor } from '@serenity-js/core';
 import { Ensure, equals, isCloseTo, not } from '@serenity-js/assertions';
 import { isVisible } from '@serenity-js/web';
 
-import { AverageGwGrade, StatisticsMetricValue } from '../../src/screenplay/questions';
+import {
+  AverageGwGrade,
+  ChartedAverageOf,
+  ChartedEvaluations,
+  StatisticsMetricValue,
+} from '../../src/screenplay/questions';
 import { FetchRoads, OpenStatisticsPage } from '../../src/screenplay/tasks';
 import { StatisticsPage } from '../../src/screenplay/ui';
 
@@ -34,4 +39,15 @@ Then('{pronoun} should see an Average GW matching the value computed from the ro
       StatisticsMetricValue('Average GW').as((text: string) => Number.parseFloat(text)),
       isCloseTo(AverageGwGrade(), 0.0001),
     ),
+  ));
+
+Then('{pronoun} should see chart values for the evaluations {string}', (actor: Actor, evaluations: string) =>
+  actor.attemptsTo(
+    Ensure.that(ChartedEvaluations(), equals(evaluations.split(',').map((evaluation) => evaluation.trim()))),
+  ));
+
+Then('{pronoun} should see a charted {string} average matching the value computed from the roads endpoint', (actor: Actor, evaluation: string) =>
+  actor.attemptsTo(
+    FetchRoads(),
+    Ensure.that(ChartedAverageOf(evaluation), isCloseTo(AverageGwGrade(), 0.0001)),
   ));

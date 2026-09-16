@@ -17,3 +17,9 @@ Feature: Review aggregate road statistics
 
   Scenario: The average GW shown in the UI matches the value computed from the API
     Then he should see an Average GW matching the value computed from the roads endpoint
+
+  Scenario: The charted values are readable as text
+    # A canvas holds no elements, so the chart also publishes its numbers as a
+    # table - assertable here and readable by screen readers.
+    Then he should see chart values for the evaluations "GW, TWGEB, TWOFS, TWRIO, TWSUB, TWEBEN"
+    And he should see a charted "gw" average matching the value computed from the roads endpoint

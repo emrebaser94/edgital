@@ -1,4 +1,6 @@
 export * from './AverageGwGrade';
+export * from './ChartedAverageOf';
+export * from './ChartedEvaluations';
 export * from './CurrentUrl';
 export * from './EvaluationOptionLabels';
 export * from './GradeColourFromApi';

@@ -77,11 +77,11 @@ Tags über `Feature:` gelten für alle Szenarien der Datei.
 | `@todos` | Todos erfassen (`add-todo.feature`) – steuert zusätzlich den Cleanup-Hook in `features/support/hooks.ts`, daher nicht umbenennen | 5 |
 | `@map` | Karte, Bewertung & Hover (`map-evaluation.feature`, `road-hover.feature`) | 7 |
 | `@navigation` | Navigation (`navigation.feature`) | 3 |
-| `@statistics` | Statistik-Seite (`statistics.feature`) | 2 |
+| `@statistics` | Statistik-Seite (`statistics.feature`) | 3 |
 | `@req-3` | Anforderung 3 – Straßen nach Bewertung einfärben | 4 |
 | `@req-4` | Anforderung 4 – Legende | 1 |
 | `@req-5` | Anforderung 5 – Hover-Effekt & Tooltip | 3 |
-| `@req-6` | Anforderung 6 – Statistik | 2 |
+| `@req-6` | Anforderung 6 – Statistik | 3 |
 | `@req-7` | Anforderung 7 – Todo anlegen und aktualisieren | 5 |
 | `@req-8` | Anforderung 8 – Navigation | 3 |
 | `@defect` | bewusst rot, dokumentiert einen Defekt | 7 |
