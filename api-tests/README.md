@@ -26,7 +26,7 @@ Edge-Cases.
 |-------|-------|
 | `road-overview.postman_collection.json` | Die Collection (Postman v2.1) |
 | `road-overview.postman_environment.json` | Environment mit `baseUrl` |
-| `report.html` | Newman-htmlextra-Report des letzten lokalen Laufs |
+| `report.html` | Newman-htmlextra-Report des letzten lokalen Laufs (ohne Response-Bodies, gegen die Original-API) |
 
 ## Voraussetzungen
 
@@ -49,6 +49,14 @@ cd sut/api && json-server -H 0.0.0.0 -p 3000 db.json
 
 ### Variante B – Newman (CLI / CI)
 
+Vom Repo-Root – schreibt zusätzlich `api-tests/report.html`:
+
+```bash
+npm run test:api
+```
+
+Oder direkt im Ordner `api-tests`:
+
 ```bash
 cd api-tests
 npx newman run road-overview.postman_collection.json \
@@ -66,7 +74,24 @@ npx newman run road-overview.postman_collection.json \
 > (alle `[DEFECT #n]`), solange die Defekte bestehen. Newman meldet
 > 32 Requests: die 30 der Collection plus 2 Cleanup-`DELETE`s, die aus
 > Test-Skripten gesendet werden. Nach einem Fix der Defekte entfallen diese
-> Cleanups (dann 30 Requests / 71 Assertions, alle grün).
+> Cleanups (dann 30 Requests / 71 Assertions, alle grün) – genau das zeigt ein
+> Lauf gegen die reparierte API vom Branch `feature/sut-defect-fixes`.
+
+## Ergebnisse lesen
+
+| Wo | Was man sieht |
+|---|---|
+| **Konsole** | Am Ende die Zusammenfassung (`assertions … executed / failed`) und darunter eine nummerierte Fehlertabelle: Assertion-Name, Soll/Ist, Ordner und Request. Mit `--reporter-cli-no-success-assertions` erscheinen nur noch die fehlgeschlagenen Assertions. |
+| **`report.html`** | HTML-Report ohne Response-Bodies (~0,6 MB statt 8,8 MB, weil `/roads` allein 2,6 MB GeoJSON liefert). Der Tab **Failed Tests** listet nur die roten Assertions. |
+| **CI** | Das Log zeigt nur Fehlschläge. Zusammenfassung und Fehlertabelle stehen in der **Job-Summary** des Workflow-Laufs, der vollständige Report auf GitHub Pages unter `api/`. |
+
+Ein Eintrag der Fehlertabelle:
+
+```
+1.  AssertionError  [DEFECT #2] empty todo (no title/road_fid) is rejected with 400
+                    expected response to have status code 400 but got 201
+                    inside "5. POST /todos - negative & edge cases / [DEFECT #2] POST empty body {} -> 400 expected"
+```
 
 ## Abgedeckte Bereiche
 
