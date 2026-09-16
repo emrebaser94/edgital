@@ -1,4 +1,4 @@
-@todos @req-7
+@todos @req-7 @TF-2
 Feature: Capture maintenance Todos from the map
   As a road maintenance planner
   I want to record a Todo for a road directly from the map

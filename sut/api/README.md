@@ -20,6 +20,14 @@ Server is reachable under http://localhost:3000
 
 Hint: Check https://github.com/typicode/json-server for more information about the json-server and its endpoints (e.g. filtering, sorting, ...)
 
+### API rules
+json-server is started as a module (`server.js`, `npm start`) with a few rules on top:
+- `POST /todos` requires `title` (non-empty string) and `road_fid` (integer), otherwise `400`; an `id` that is already taken returns `409`
+- Write requests (`POST`/`PUT`/`PATCH`) must send `Content-Type: application/json`, otherwise `415`
+- Errors (e.g. a malformed JSON body) are returned as JSON: `{ "error": "..." }`
+- `/roads` is read-only: `POST`/`PUT`/`PATCH` return `405`
+- CORS is only granted to the web app origins (env `CORS_ORIGINS`, default `http://localhost:5173,http://127.0.0.1:5173`)
+
 # Your task
 1. Create a react app with a map component (e.g. leaflet)
 2. Fetch the GeoJSON FeatureCollection from the server and display it on the map

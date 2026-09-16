@@ -1,10 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 interface TodoModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (todoData: any) => void;
-  selectedRoad: Todo | null;
+  /** `existingId` is null when a new Todo should be created. */
+  onSave: (todoData: any, existingId: string | number | null) => void;
+  /** Every Todo already stored for the clicked road. */
+  todos: Todo[];
+  /** Blank Todo for the clicked road, pre-filled with the road name. */
+  newTodo: Todo;
 }
 
 interface Todo {
@@ -16,13 +20,30 @@ interface Todo {
   road_fid: number;
 }
 
-const TodoModal: React.FC<TodoModalProps> = ({ isOpen, onClose, onSave, selectedRoad }) => {
+/** Index used while a new Todo is being entered. */
+const NEW_TODO = -1;
+
+const TodoModal: React.FC<TodoModalProps> = ({ isOpen, onClose, onSave, todos, newTodo }) => {
+  // A road can carry several Todos, so the form pages through them; -1 means "new Todo".
+  const [index, setIndex] = useState(todos.length > 0 ? 0 : NEW_TODO);
+  const current = index === NEW_TODO ? newTodo : todos[index];
+  const isExistingTodo = index !== NEW_TODO;
+
   // State variables for form fields
-  const [title, setTitle] = useState(selectedRoad ? selectedRoad.title : '');
-  const [description, setDescription] = useState(selectedRoad ? selectedRoad.description : '');
-  const [status, setStatus] = useState(selectedRoad ? selectedRoad.status : '');
-  const [author, setAuthor] = useState(selectedRoad ? selectedRoad.author : '');
-  const [roadFid, setRoadFid] = useState(selectedRoad ? selectedRoad.road_fid.toString() : '');
+  const [title, setTitle] = useState(current?.title ?? '');
+  const [description, setDescription] = useState(current?.description ?? '');
+  const [status, setStatus] = useState(current?.status ?? '');
+  const [author, setAuthor] = useState(current?.author ?? '');
+  const [roadFid, setRoadFid] = useState(current ? String(current.road_fid) : '');
+
+  // Show the fields of the Todo that is currently paged to.
+  useEffect(() => {
+    setTitle(current?.title ?? '');
+    setDescription(current?.description ?? '');
+    setStatus(current?.status ?? '');
+    setAuthor(current?.author ?? '');
+    setRoadFid(current ? String(current.road_fid) : '');
+  }, [index, current]);
 
   const handleSave = () => {
     const todoData = {
@@ -32,7 +53,7 @@ const TodoModal: React.FC<TodoModalProps> = ({ isOpen, onClose, onSave, selected
       author,
       road_fid: parseInt(roadFid)
     };
-    onSave(todoData);
+    onSave(todoData, isExistingTodo ? current.id : null);
     onClose();
   };
 
@@ -42,9 +63,32 @@ const TodoModal: React.FC<TodoModalProps> = ({ isOpen, onClose, onSave, selected
         <div className="modal-content bg-white border border-gray-300 rounded-lg shadow-md w-80 p-4">
           <div className="modal-header py-2 px-4 rounded-t-lg flex justify-between items-center">
             <h2 className="text-xl font-semibold">Todo Details</h2>
-            <button className="text-gray-500 cursor-pointer" onClick={onClose}>
-              <span className="text-2xl">&times;</span>
-            </button>
+            <div className="flex items-center">
+              {isExistingTodo && (
+                <div className="flex items-center mr-4">
+                  <button
+                    className="px-2 text-gray-500 focus:outline-none cursor-pointer disabled:text-gray-300"
+                    aria-label="Previous todo"
+                    onClick={() => setIndex(index - 1)}
+                    disabled={index === 0}
+                  >
+                    &lsaquo;
+                  </button>
+                  <span className="todo-counter text-sm">{index + 1} / {todos.length}</span>
+                  <button
+                    className="px-2 text-gray-500 focus:outline-none cursor-pointer disabled:text-gray-300"
+                    aria-label="Next todo"
+                    onClick={() => setIndex(index + 1)}
+                    disabled={index === todos.length - 1}
+                  >
+                    &rsaquo;
+                  </button>
+                </div>
+              )}
+              <button className="text-gray-500 cursor-pointer" onClick={onClose}>
+                <span className="text-2xl">&times;</span>
+              </button>
+            </div>
           </div>
           <div className="modal-body py-4 px-4">
             <input
@@ -53,7 +97,6 @@ const TodoModal: React.FC<TodoModalProps> = ({ isOpen, onClose, onSave, selected
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full p-2 border rounded-md focus:outline-none focus:ring focus:ring-gray-400 mb-2"
-              disabled={!!selectedRoad?.title} // Disable input if selectedRoad is provided
             />
             <textarea
               placeholder="Description"
@@ -81,16 +124,29 @@ const TodoModal: React.FC<TodoModalProps> = ({ isOpen, onClose, onSave, selected
               value={roadFid}
               onChange={(e) => setRoadFid(e.target.value)}
               className="w-full p-2 border rounded-md focus:outline-none focus:ring focus:ring-gray-400 mb-2"
-              disabled={!!selectedRoad} // Disable input if selectedRoad is provided
+              disabled // the road is chosen by clicking it on the map
             />
           </div>
-          <div className={`modal-footer py-2 px-4 rounded-b-lg flex justify-end items-end text-gray-900`}>
-            <button className="p-2 text-black rounded-l-md focus:outline-none cursor-pointer" onClick={onClose}>
-              Close
-            </button>
-            <button className="ml-2 p-2 text-white-700 bg-gray-200 rounded-r-md hover:bg-orange-300 focus:outline-none cursor-pointer" onClick={handleSave}>
-              {selectedRoad ? 'Update' : 'Save'}
-            </button>
+          <div className={`modal-footer py-2 px-4 rounded-b-lg flex justify-between items-end text-gray-900`}>
+            <div>
+              {isExistingTodo && (
+                <button
+                  className="p-2 text-black rounded-md focus:outline-none cursor-pointer"
+                  aria-label="New todo"
+                  onClick={() => setIndex(NEW_TODO)}
+                >
+                  New Todo
+                </button>
+              )}
+            </div>
+            <div className="flex items-end">
+              <button className="p-2 text-black rounded-l-md focus:outline-none cursor-pointer" onClick={onClose}>
+                Close
+              </button>
+              <button className="ml-2 p-2 text-white-700 bg-gray-200 rounded-r-md hover:bg-orange-300 focus:outline-none cursor-pointer" onClick={handleSave} disabled={!title.trim()}>
+                {isExistingTodo ? 'Update' : 'Save'}
+              </button>
+            </div>
           </div>
         </div>
       </div>

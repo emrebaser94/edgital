@@ -34,8 +34,9 @@ const RoadEvaluation = () => {
   const [evaluation, setEvaluation] = useState('gw'); // Default evaluation
   const [todoList, setTodoList] = useState<Todo[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedRoad, setSelectedRoad] = useState<Todo | null>(null);
-  const [roadExists, setRoadExistance] = useState(false);
+  // A road can carry several Todos: keep all of them plus a blank one for the form.
+  const [selectedRoadTodos, setSelectedRoadTodos] = useState<Todo[]>([]);
+  const [newTodo, setNewTodo] = useState<Todo | null>(null);
 
   useEffect(() => {
     const fetchGeojsonData = async () => {
@@ -83,38 +84,27 @@ const RoadEvaluation = () => {
     const todos = await response.json();
     await fetchTodos();
 
-    // Check if the selected road already exists in the todoList
-    const existingTodo = todos.find((todo: { road_fid: any; }) => todo.road_fid === road.properties.fid);
-    // If the selected road exists in the todoList, set it as the selectedRoad
-    if (existingTodo) {
-      setRoadExistance(true);
-      setSelectedRoad(existingTodo);
-    } else {
-      // If the selected road doesn't exist in the todoList, create a new todo item
-      const newTodoData = {
-        id: '', // This will be assigned by the server
-        title: road.properties.name,
-        description: '',
-        status: '',
-        author: '',
-        road_fid: road.properties.fid,
-      };
-  
-      // Set the new todo data as the selectedRoad
-      setSelectedRoad(newTodoData);
-      setRoadExistance(false);
-    }
-  
+    // Every Todo of this road, so the form can page through them
+    setSelectedRoadTodos(todos.filter((todo: { road_fid: any; }) => todo.road_fid === road.properties.fid));
+    setNewTodo({
+      id: '', // This will be assigned by the server
+      title: road.properties.name ?? '',
+      description: '',
+      status: '',
+      author: '',
+      road_fid: road.properties.fid,
+    });
+
     // Open the modal
     setModalOpen(true);
   };
   
 
-  const handleSaveTodo = async (todoData: Todo) => {
+  const handleSaveTodo = async (todoData: Todo, existingId: string | number | null) => {
     try {
-      if (roadExists) {
-        // Update existing todo
-        const response = await fetch(`http://localhost:3000/todos/${selectedRoad?.id}`, {
+      if (existingId !== null && existingId !== '') {
+        // Update the Todo that is currently open in the form
+        const response = await fetch(`http://localhost:3000/todos/${existingId}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -125,8 +115,7 @@ const RoadEvaluation = () => {
           throw new Error('Failed to update todo');
         }
         const updatedTodo = await response.json();
-        const updatedTodoList = todoList.map(todo => (todo.road_fid === selectedRoad?.road_fid ? updatedTodo : todo));
-        setTodoList(updatedTodoList);
+        setTodoList(todoList.map(todo => (String(todo.id) === String(existingId) ? updatedTodo : todo)));
       } else {
         // Create new todo
         const response = await fetch('http://localhost:3000/todos', {
@@ -170,8 +159,14 @@ const RoadEvaluation = () => {
     }
   };
 
+  // RISS is not a top-level evaluation like gw or twofs; it lives in sub_type_grades.
+  const gradeOf = (feature: GeoJSON.Feature<any, any>, selectedEvaluation: string) =>
+    selectedEvaluation === 'riss'
+      ? feature.properties.eemi_grade.sub_type_grades?.RISS
+      : feature.properties.eemi_grade[selectedEvaluation];
+
   const getStyle = (feature: GeoJSON.Feature<any, any> | null | undefined) => {
-    const eemi = feature?.properties.eemi_grade[evaluation];
+    const eemi = feature ? gradeOf(feature, evaluation) : undefined;
     let color = 'blue'; // Default color
     if (eemi >= 1 && eemi < 1.5) {
       color = 'blue';
@@ -238,7 +233,7 @@ const RoadEvaluation = () => {
             <p>Name: ${feature.properties.name ?? '-'}</p>
             <p>EVNK: ${feature.properties.evnk}</p>
             <p>ENNK: ${feature.properties.ennk}</p>
-            <p>EEMI Grade (${evaluation}): ${feature.properties.eemi_grade[evaluation]}</p>
+            <p>EEMI Grade (${evaluation}): ${gradeOf(feature, evaluation)}</p>
           </div>
         `).openTooltip();
       },
@@ -275,6 +270,7 @@ const RoadEvaluation = () => {
             <option className='p-2 text-sm' value="twrio">TWRIO</option>
             <option className='p-2 text-sm' value="twsub">TWSUB</option>
             <option className='p-2 text-sm' value="tweben">TWEBEN</option>
+            <option className='p-2 text-sm' value="riss">RISS</option>
           </select>
 
             <div className="flex items-center ml-auto">
@@ -297,8 +293,11 @@ const RoadEvaluation = () => {
             style={{ height: 'calc(100vh - 240px)' }}
           >
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            {/* key: remount the layer when the evaluation changes, so onEachFeature
+                (tooltip and mouseout style) uses the current evaluation, not the first one */}
             {geojsonData &&
             <GeoJSON
+              key={evaluation}
               data={geojsonData}
               style={getStyle}
               interactive={true}
@@ -316,13 +315,14 @@ const RoadEvaluation = () => {
         </div>
       </div>
 
-      {modalOpen && (
+      {modalOpen && newTodo && (
         <div className={`modal-container ${modalOpen ? 'block' : 'hidden'} fixed inset-0 z-50 overflow-auto`} style={{ backgroundColor: 'rgba(0, 0, 0, 0.25)' }}>
           <TodoModal
             isOpen={modalOpen}
             onClose={() => setModalOpen(false)}
             onSave={handleSaveTodo}
-            selectedRoad={selectedRoad}
+            todos={selectedRoadTodos}
+            newTodo={newTodo}
           />
         </div>
       )}
