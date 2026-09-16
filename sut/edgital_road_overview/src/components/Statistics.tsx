@@ -1,6 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import Chart from 'chart.js/auto';
 
 interface GeoJSONFeature {
   type: string;
@@ -22,6 +21,8 @@ interface EemiStatistic {
   average: number;
 }
 
+type Metric = 'total' | 'average';
+
 interface StatisticsDisplayMode {
   showTable?: boolean;
 }
@@ -29,12 +30,114 @@ interface StatisticsDisplayMode {
 // GW is part of the comparison: the requirement names it explicitly.
 const EEMI_ATTRIBUTES = ['gw', 'twgeb', 'twofs', 'twrio', 'twsub', 'tweben'];
 
+const BAR_COLORS: Record<Metric, { fill: string; stroke: string }> = {
+  total: { fill: 'rgba(255, 99, 132, 0.2)', stroke: 'rgba(255, 99, 132, 1)' },
+  average: { fill: 'rgba(54, 162, 235, 0.2)', stroke: 'rgba(54, 162, 235, 1)' },
+};
+
+// Chart geometry in viewBox units; the SVG scales to the width of its container.
+const WIDTH = 600;
+const HEIGHT = 300;
+const MARGIN = { top: 16, right: 48, bottom: 72, left: 64 };
+const MAX_GRADE = 5;
+
+/**
+ * Bar chart drawn as SVG, so every bar is a DOM element that carries its value
+ * (data-series, data-metric, data-value). Totals and averages differ by three
+ * orders of magnitude, so each metric is scaled to its own axis: totals left,
+ * averages (grade 0-5) right.
+ */
+const GradeBarChart: React.FC<{ statistics: EemiStatistic[] }> = ({ statistics }) => {
+  const plotWidth = WIDTH - MARGIN.left - MARGIN.right;
+  const plotHeight = HEIGHT - MARGIN.top - MARGIN.bottom;
+  const plotBottom = MARGIN.top + plotHeight;
+  const maxTotal = Math.max(...statistics.map(stat => stat.total), 1);
+  const band = plotWidth / statistics.length;
+  const barWidth = band * 0.35;
+  const yFor = (share: number) => MARGIN.top + plotHeight * (1 - share);
+
+  const bar = (stat: EemiStatistic, metric: Metric, index: number) => {
+    const value = stat[metric];
+    const share = metric === 'total' ? value / maxTotal : value / MAX_GRADE;
+    const offset = metric === 'total' ? 0 : barWidth;
+    return (
+      <rect
+        className="bar"
+        data-series={stat.attribute}
+        data-metric={metric}
+        data-value={value}
+        x={MARGIN.left + index * band + band * 0.15 + offset}
+        y={yFor(share)}
+        width={barWidth}
+        height={plotHeight * share}
+        fill={BAR_COLORS[metric].fill}
+        stroke={BAR_COLORS[metric].stroke}
+      >
+        <title>{`${stat.attribute.toUpperCase()} ${metric}: ${value.toFixed(2)}`}</title>
+      </rect>
+    );
+  };
+
+  return (
+    <svg
+      id="statisticsChart"
+      role="img"
+      aria-label="Total and average EEMI grade per evaluation"
+      viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+      width="100%"
+    >
+      {/* axes */}
+      <line x1={MARGIN.left} y1={MARGIN.top} x2={MARGIN.left} y2={plotBottom} stroke="#9CA3AF" />
+      <line x1={WIDTH - MARGIN.right} y1={MARGIN.top} x2={WIDTH - MARGIN.right} y2={plotBottom} stroke="#9CA3AF" />
+      <line x1={MARGIN.left} y1={plotBottom} x2={WIDTH - MARGIN.right} y2={plotBottom} stroke="#9CA3AF" />
+      {[0, 0.5, 1].map(share => (
+        <text key={`total-${share}`} x={MARGIN.left - 6} y={yFor(share)} textAnchor="end" dominantBaseline="middle" fontSize="10" fill="#6B7280">
+          {Math.round(maxTotal * share)}
+        </text>
+      ))}
+      {[0, 1, 2, 3, 4, 5].map(grade => (
+        <text key={`average-${grade}`} x={WIDTH - MARGIN.right + 6} y={yFor(grade / MAX_GRADE)} dominantBaseline="middle" fontSize="10" fill="#6B7280">
+          {grade}
+        </text>
+      ))}
+      <text transform={`rotate(-90 14 ${MARGIN.top + plotHeight / 2})`} x={14} y={MARGIN.top + plotHeight / 2} textAnchor="middle" fontSize="11">
+        Total
+      </text>
+      <text transform={`rotate(90 ${WIDTH - 12} ${MARGIN.top + plotHeight / 2})`} x={WIDTH - 12} y={MARGIN.top + plotHeight / 2} textAnchor="middle" fontSize="11">
+        Average grade
+      </text>
+
+      {/* bars */}
+      {statistics.map((stat, index) => (
+        <g key={stat.attribute} className="bar-group" data-series={stat.attribute}>
+          {bar(stat, 'total', index)}
+          {bar(stat, 'average', index)}
+          <text x={MARGIN.left + index * band + band / 2} y={plotBottom + 16} textAnchor="middle" fontSize="11">
+            {stat.attribute.toUpperCase()}
+          </text>
+        </g>
+      ))}
+      <text x={MARGIN.left + plotWidth / 2} y={plotBottom + 36} textAnchor="middle" fontSize="11">
+        EEMI Attribute
+      </text>
+
+      {/* legend ("chart-legend": the map page already has a ".legend") */}
+      <g className="chart-legend">
+        {(['total', 'average'] as Metric[]).map((metric, index) => (
+          <g key={metric} transform={`translate(${WIDTH / 2 - 70 + index * 90} ${HEIGHT - 14})`}>
+            <rect width={12} height={12} y={-10} fill={BAR_COLORS[metric].fill} stroke={BAR_COLORS[metric].stroke} />
+            <text x={18} fontSize="11">{metric === 'total' ? 'Total' : 'Average'}</text>
+          </g>
+        ))}
+      </g>
+    </svg>
+  );
+};
+
 const Statistics: React.FC<StatisticsDisplayMode> = ({ showTable = true }) => {
   const [data, setData] = useState<GeoJSONFeature[]>([]);
   const [tableStatistics, setTableStatistics] = useState<any>(null);
   const [chartStatistics, setChartStatistics] = useState<EemiStatistic[]>([]);
-  // Keep the chart instance so it can be destroyed before the canvas is reused.
-  const chartRef = useRef<Chart | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -63,81 +166,11 @@ const Statistics: React.FC<StatisticsDisplayMode> = ({ showTable = true }) => {
       const gwValues = data.map(road => road.properties.eemi_grade['gw']);
       const averageGW = gwValues.reduce((total, value) => total + value, 0) / gwValues.length;
 
-      // Create a chart - drop the previous one first, a canvas can only hold one
-      const ctx = document.getElementById('statisticsChart') as HTMLCanvasElement;
-      chartRef.current?.destroy();
-      chartRef.current = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: eemiStatistics.map(stat => stat.attribute.toUpperCase()),
-          datasets: [{
-            label: 'Total',
-            data: eemiStatistics.map(stat => stat.total),
-            yAxisID: 'yTotal',
-            backgroundColor: 'rgba(255, 99, 132, 0.2)',
-            borderColor: 'rgba(255, 99, 132, 1)',
-            borderWidth: 1
-          }, {
-            label: 'Average',
-            data: eemiStatistics.map(stat => stat.average),
-            // Averages (1-5) would vanish next to the totals, so they get their own axis
-            yAxisID: 'yAverage',
-            backgroundColor: 'rgba(54, 162, 235, 0.2)',
-            borderColor: 'rgba(54, 162, 235, 1)',
-            borderWidth: 1
-          }]
-        },
-        options: {
-          scales: {
-            x: {
-              title: {
-                display: true,
-                text: 'EEMI Attribute'
-              }
-            },
-            yTotal: {
-              type: 'linear',
-              position: 'left',
-              beginAtZero: true,
-              title: {
-                display: true,
-                text: 'Total'
-              }
-            },
-            yAverage: {
-              type: 'linear',
-              position: 'right',
-              beginAtZero: true,
-              suggestedMax: 5,
-              grid: {
-                drawOnChartArea: false
-              },
-              title: {
-                display: true,
-                text: 'Average grade'
-              }
-            }
-          },
-          plugins: {
-            legend: {
-              display: true,
-              position: 'bottom'
-            },
-          }
-        }
-      });
-
       // Generate table statistics
       const statistics = calculateStatistics(data, averageGW);
       setTableStatistics(statistics);
     }
   }, [data]);
-
-  // Release the chart when the component goes away, so the canvas stays reusable
-  useEffect(() => () => {
-    chartRef.current?.destroy();
-    chartRef.current = null;
-  }, []);
 
   const calculateStatistics = (roadsData: GeoJSONFeature[], averageGW: number) => {
     // Initialize variables for statistics
@@ -187,34 +220,7 @@ const Statistics: React.FC<StatisticsDisplayMode> = ({ showTable = true }) => {
       <h2 className="text-lg font-semibold mb-2">EEMI Attributes Comparison</h2>
       <div className={`flex flex-col md:flex-row items-center justify-center ${showTable ? 'md:items-start' : ''}`}>
         <div className={`chart-container mb-4 ${showTable ? 'md:mb-0 md:mr-4 w-full md:w-1/2' : 'w-full'}`}>
-          <canvas
-            id="statisticsChart"
-            role="img"
-            aria-label="Total and average EEMI grade per evaluation"
-          ></canvas>
-          {/* The canvas is pixels only: the same numbers as a table, readable by
-              screen readers and assertable in tests. */}
-          {chartStatistics.length > 0 && (
-            <table className="chart-data table-auto w-full border-collapse border border-gray-200 mt-2 text-sm">
-              <caption className="text-left text-xs text-gray-500 mb-1">Chart values</caption>
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="px-2 py-1 text-left">Evaluation</th>
-                  <th className="px-2 py-1 text-right">Average</th>
-                  <th className="px-2 py-1 text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {chartStatistics.map(stat => (
-                  <tr key={stat.attribute} data-series={stat.attribute}>
-                    <td className="series-label border px-2 py-1">{stat.attribute.toUpperCase()}</td>
-                    <td className="series-average border px-2 py-1 text-right" data-value={stat.average}>{stat.average.toFixed(2)}</td>
-                    <td className="series-total border px-2 py-1 text-right" data-value={stat.total}>{stat.total.toFixed(2)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+          {chartStatistics.length > 0 && <GradeBarChart statistics={chartStatistics} />}
         </div>
         {showTable && tableStatistics && (
           <div className="table-container">

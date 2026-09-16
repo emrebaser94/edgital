@@ -1,5 +1,5 @@
 export * from './AverageGwGrade';
-export * from './ChartedAverageOf';
+export * from './BarValue';
 export * from './ChartedEvaluations';
 export * from './CurrentUrl';
 export * from './EvaluationOptionLabels';

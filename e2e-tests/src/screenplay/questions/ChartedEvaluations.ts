@@ -1,8 +1,10 @@
-import { Question } from '@serenity-js/core';
-import { Text } from '@serenity-js/web';
+import { Attribute } from '@serenity-js/web';
 
 import { StatisticsPage } from '../ui/StatisticsPage';
 
-/** The evaluations the chart shows, e.g. ["GW", "TWGEB", …]. */
-export const ChartedEvaluations = (): Question<Promise<string[]>> =>
-  Text.ofAll(StatisticsPage.chartDataLabels());
+/** The evaluations charted as bars of one metric, e.g. ["GW", "TWGEB", …]. */
+export const ChartedEvaluations = (metric: string) =>
+  StatisticsPage.bars(metric)
+    .eachMappedTo(Attribute.called('data-series'))
+    .as((series) => series.map((value) => String(value).toUpperCase()))
+    .describedAs(`the evaluations charted as ${metric} bars`);
