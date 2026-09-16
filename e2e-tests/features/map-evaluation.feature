@@ -20,14 +20,21 @@ Feature: Assess road condition on the map by evaluation type
       | Grade 4.5 - 5.00 |
 
   @req-3
-  Scenario Outline: Roads are coloured with the grade palette for the "<evaluation>" evaluation
-    When he selects the "<evaluation>" evaluation
-    Then he should see every visible road coloured with a grade-palette colour
+  Scenario Outline: Switching from "<from>" to "<to>" recolours a road by its "<to>" grade
+    # The reference road (fid 5646) changes colour on every switch below,
+    # so an evaluation that does not recolour the map is caught.
+    When he selects the "<from>" evaluation
+    And he selects the "<to>" evaluation
+    Then he should see the reference road coloured by its "<to>" grade
 
     Examples:
-      | evaluation |
-      | GW         |
-      | TWRIO      |
+      | from   | to     |
+      | GW     | TWOFS  |
+      | TWOFS  | TWRIO  |
+      | TWRIO  | TWGEB  |
+      | TWGEB  | TWSUB  |
+      | TWSUB  | TWEBEN |
+      | TWEBEN | GW     |
 
   @defect @req-3
   Scenario: [DEFECT] The RISS evaluation is not selectable although the data exists
