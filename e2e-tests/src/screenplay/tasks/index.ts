@@ -1,5 +1,6 @@
 export * from './FetchRoads';
 export * from './FetchTodosForRoad';
+export * from './FillAndSaveNewTodo';
 export * from './FillAndSaveTodo';
 export * from './InspectRoad';
 export * from './OpenMenuEntry';
@@ -7,6 +8,9 @@ export * from './OpenRoadMap';
 export * from './OpenStatisticsPage';
 export * from './OpenTodoFormForRoad';
 export * from './OpenTodosPage';
+export * from './PageToNextTodo';
+export * from './RemoveTodosByAuthor';
 export * from './RemoveTodosForRoad';
 export * from './SelectEvaluation';
+export * from './StartNewTodo';
 export * from './StopInspectingRoad';
