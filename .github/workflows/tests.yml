@@ -55,17 +55,38 @@ jobs:
           java-version: 17
 
       # --- API-Tests (Newman -> HTML + JUnit) ---
+      # Das Log listet nur fehlgeschlagene Assertions; Zusammenfassung und
+      # Fehlertabelle landen zusätzlich in der Job-Summary des Workflow-Laufs.
+      # Der HTML-Report lässt die Response-Bodies weg (/roads allein sind 2,6 MB).
       - name: API tests (Newman)
         id: api
         continue-on-error: true         # Report soll auch bei Fehlern deployt werden
         working-directory: api-tests
         run: |
+          set +e                        # Summary auch schreiben, wenn Tests rot sind
           npx -y -p newman -p newman-reporter-htmlextra newman run \
             road-overview.postman_collection.json \
             -e road-overview.postman_environment.json \
             -r cli,htmlextra,junit \
+            --color off \
+            --reporter-cli-no-success-assertions \
             --reporter-htmlextra-export report/index.html \
-            --reporter-junit-export report/junit.xml
+            --reporter-htmlextra-title "Road Overview – API-Tests" \
+            --reporter-htmlextra-browserTitle "API-Tests" \
+            --reporter-htmlextra-omitResponseBodies \
+            --reporter-htmlextra-testPaging \
+            --reporter-junit-export report/junit.xml \
+            2>&1 | tee newman-cli.txt
+          status=${PIPESTATUS[0]}       # Exit-Code von Newman, nicht von tee
+          {
+            echo "## API-Tests (Newman)"
+            echo '```'
+            # ab Zusammenfassungstabelle bis Fehlerliste; die Fehlertabelle trägt
+            # trotz --color off ANSI-Farbcodes, die in der Summary stören würden
+            sed -n '/┌/,$p' newman-cli.txt | perl -pe 's/\e\[[0-9;]*m//g'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit $status
 
       # --- E2E-Tests (Serenity/JS + Playwright + Cucumber) ---
       - name: Install e2e deps
