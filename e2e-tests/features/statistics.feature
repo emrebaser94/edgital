@@ -22,3 +22,10 @@ Feature: Review aggregate road statistics
     # The chart is SVG, so each bar is a DOM element carrying its value.
     Then he should see total and average bars for the evaluations "GW, TWGEB, TWOFS, TWRIO, TWSUB, TWEBEN"
     And he should see a "gw" average bar matching the value computed from the roads endpoint
+
+  Scenario: A bar series can be hidden and shown again via the legend
+    When he hides the "total" bars
+    Then he should see only the "average" bars
+    When he shows the "total" bars again
+    And he hides the "average" bars
+    Then he should see only the "total" bars

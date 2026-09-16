@@ -30,6 +30,13 @@ interface StatisticsDisplayMode {
 // GW is part of the comparison: the requirement names it explicitly.
 const EEMI_ATTRIBUTES = ['gw', 'twgeb', 'twofs', 'twrio', 'twsub', 'tweben'];
 
+const METRICS: Metric[] = ['total', 'average'];
+
+const METRIC_LABELS: Record<Metric, string> = {
+  total: 'Total',
+  average: 'Average',
+};
+
 const BAR_COLORS: Record<Metric, { fill: string; stroke: string }> = {
   total: { fill: 'rgba(255, 99, 132, 0.2)', stroke: 'rgba(255, 99, 132, 1)' },
   average: { fill: 'rgba(54, 162, 235, 0.2)', stroke: 'rgba(54, 162, 235, 1)' },
@@ -45,9 +52,14 @@ const MAX_GRADE = 5;
  * Bar chart drawn as SVG, so every bar is a DOM element that carries its value
  * (data-series, data-metric, data-value). Totals and averages differ by three
  * orders of magnitude, so each metric is scaled to its own axis: totals left,
- * averages (grade 0-5) right.
+ * averages (grade 0-5) right. Like a Chart.js legend, clicking a legend entry
+ * hides or shows the bars of that metric.
  */
 const GradeBarChart: React.FC<{ statistics: EemiStatistic[] }> = ({ statistics }) => {
+  const [visible, setVisible] = useState<Record<Metric, boolean>>({ total: true, average: true });
+  const toggle = (metric: Metric) => setVisible(current => ({ ...current, [metric]: !current[metric] }));
+  const visibleMetrics = METRICS.filter(metric => visible[metric]);
+
   const plotWidth = WIDTH - MARGIN.left - MARGIN.right;
   const plotHeight = HEIGHT - MARGIN.top - MARGIN.bottom;
   const plotBottom = MARGIN.top + plotHeight;
@@ -59,14 +71,17 @@ const GradeBarChart: React.FC<{ statistics: EemiStatistic[] }> = ({ statistics }
   const bar = (stat: EemiStatistic, metric: Metric, index: number) => {
     const value = stat[metric];
     const share = metric === 'total' ? value / maxTotal : value / MAX_GRADE;
-    const offset = metric === 'total' ? 0 : barWidth;
+    // Centre the visible bars of a group in their band
+    const groupWidth = barWidth * visibleMetrics.length;
+    const x = MARGIN.left + index * band + (band - groupWidth) / 2 + visibleMetrics.indexOf(metric) * barWidth;
     return (
       <rect
+        key={metric}
         className="bar"
         data-series={stat.attribute}
         data-metric={metric}
         data-value={value}
-        x={MARGIN.left + index * band + band * 0.15 + offset}
+        x={x}
         y={yFor(share)}
         width={barWidth}
         height={plotHeight * share}
@@ -90,28 +105,35 @@ const GradeBarChart: React.FC<{ statistics: EemiStatistic[] }> = ({ statistics }
       <line x1={MARGIN.left} y1={MARGIN.top} x2={MARGIN.left} y2={plotBottom} stroke="#9CA3AF" />
       <line x1={WIDTH - MARGIN.right} y1={MARGIN.top} x2={WIDTH - MARGIN.right} y2={plotBottom} stroke="#9CA3AF" />
       <line x1={MARGIN.left} y1={plotBottom} x2={WIDTH - MARGIN.right} y2={plotBottom} stroke="#9CA3AF" />
-      {[0, 0.5, 1].map(share => (
-        <text key={`total-${share}`} x={MARGIN.left - 6} y={yFor(share)} textAnchor="end" dominantBaseline="middle" fontSize="10" fill="#6B7280">
-          {Math.round(maxTotal * share)}
-        </text>
-      ))}
-      {[0, 1, 2, 3, 4, 5].map(grade => (
-        <text key={`average-${grade}`} x={WIDTH - MARGIN.right + 6} y={yFor(grade / MAX_GRADE)} dominantBaseline="middle" fontSize="10" fill="#6B7280">
-          {grade}
-        </text>
-      ))}
-      <text transform={`rotate(-90 14 ${MARGIN.top + plotHeight / 2})`} x={14} y={MARGIN.top + plotHeight / 2} textAnchor="middle" fontSize="11">
-        Total
-      </text>
-      <text transform={`rotate(90 ${WIDTH - 12} ${MARGIN.top + plotHeight / 2})`} x={WIDTH - 12} y={MARGIN.top + plotHeight / 2} textAnchor="middle" fontSize="11">
-        Average grade
-      </text>
+      {visible.total && (
+        <>
+          {[0, 0.5, 1].map(share => (
+            <text key={`total-${share}`} x={MARGIN.left - 6} y={yFor(share)} textAnchor="end" dominantBaseline="middle" fontSize="10" fill="#6B7280">
+              {Math.round(maxTotal * share)}
+            </text>
+          ))}
+          <text transform={`rotate(-90 14 ${MARGIN.top + plotHeight / 2})`} x={14} y={MARGIN.top + plotHeight / 2} textAnchor="middle" fontSize="11">
+            Total
+          </text>
+        </>
+      )}
+      {visible.average && (
+        <>
+          {[0, 1, 2, 3, 4, 5].map(grade => (
+            <text key={`average-${grade}`} x={WIDTH - MARGIN.right + 6} y={yFor(grade / MAX_GRADE)} dominantBaseline="middle" fontSize="10" fill="#6B7280">
+              {grade}
+            </text>
+          ))}
+          <text transform={`rotate(90 ${WIDTH - 12} ${MARGIN.top + plotHeight / 2})`} x={WIDTH - 12} y={MARGIN.top + plotHeight / 2} textAnchor="middle" fontSize="11">
+            Average grade
+          </text>
+        </>
+      )}
 
       {/* bars */}
       {statistics.map((stat, index) => (
         <g key={stat.attribute} className="bar-group" data-series={stat.attribute}>
-          {bar(stat, 'total', index)}
-          {bar(stat, 'average', index)}
+          {visibleMetrics.map(metric => bar(stat, metric, index))}
           <text x={MARGIN.left + index * band + band / 2} y={plotBottom + 16} textAnchor="middle" fontSize="11">
             {stat.attribute.toUpperCase()}
           </text>
@@ -121,12 +143,34 @@ const GradeBarChart: React.FC<{ statistics: EemiStatistic[] }> = ({ statistics }
         EEMI Attribute
       </text>
 
-      {/* legend ("chart-legend": the map page already has a ".legend") */}
+      {/* legend ("chart-legend": the map page already has a ".legend"); click to hide/show */}
       <g className="chart-legend">
-        {(['total', 'average'] as Metric[]).map((metric, index) => (
-          <g key={metric} transform={`translate(${WIDTH / 2 - 70 + index * 90} ${HEIGHT - 14})`}>
+        {METRICS.map((metric, index) => (
+          <g
+            key={metric}
+            className="chart-legend-item"
+            data-metric={metric}
+            role="button"
+            tabIndex={0}
+            aria-pressed={visible[metric]}
+            aria-label={`${visible[metric] ? 'Hide' : 'Show'} the ${METRIC_LABELS[metric]} bars`}
+            transform={`translate(${WIDTH / 2 - 70 + index * 90} ${HEIGHT - 14})`}
+            opacity={visible[metric] ? 1 : 0.4}
+            style={{ cursor: 'pointer' }}
+            onClick={() => toggle(metric)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                toggle(metric);
+              }
+            }}
+          >
+            {/* transparent hit area, so a click anywhere on the entry counts */}
+            <rect x={-4} y={-14} width={80} height={20} fill="transparent" />
             <rect width={12} height={12} y={-10} fill={BAR_COLORS[metric].fill} stroke={BAR_COLORS[metric].stroke} />
-            <text x={18} fontSize="11">{metric === 'total' ? 'Total' : 'Average'}</text>
+            <text x={18} fontSize="11" textDecoration={visible[metric] ? undefined : 'line-through'}>
+              {METRIC_LABELS[metric]}
+            </text>
           </g>
         ))}
       </g>

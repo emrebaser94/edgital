@@ -14,3 +14,4 @@ export * from './RemoveTodosForRoad';
 export * from './SelectEvaluation';
 export * from './StartNewTodo';
 export * from './StopInspectingRoad';
+export * from './ToggleChartSeries';

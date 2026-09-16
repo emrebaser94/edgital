@@ -19,4 +19,9 @@ export class StatisticsPage {
   static bar = (series: string, metric: string) =>
     PageElement.located(By.css(`svg#statisticsChart rect.bar[data-series="${series}"][data-metric="${metric}"]`))
       .describedAs(`the ${metric} bar of "${series}"`);
+
+  /** Legend entry that hides or shows the bars of one metric. */
+  static legendItem = (metric: string) =>
+    PageElement.located(By.css(`svg#statisticsChart .chart-legend-item[data-metric="${metric}"]`))
+      .describedAs(`the ${metric} legend entry`);
 }
