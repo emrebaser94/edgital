@@ -8,9 +8,9 @@ Getestet werden die dokumentierten Endpunkte `GET /roads`, `GET /todos`,
 Paginierung, Einzeldatensätze per ID) und eine Reihe von Negativ- und
 Edge-Cases.
 
-- **32 Requests / 77 Assertions**, in 7 thematischen Ordnern
+- **30 Requests / 73 Assertions**, in 7 thematischen Ordnern
 - **Assertions prüfen das Soll-Verhalten.** Bekannte Defekte sind mit
-  `[DEFECT #n]` markiert und schlagen **bewusst fehl** (5 Assertions, siehe
+  `[DEFECT #n]` markiert und schlagen **bewusst fehl** (4 Assertions, siehe
   [Bewusst rote Tests](#bewusst-rote-tests-defect-n)) – gleiche Konvention wie
   `@defect` in den E2E-Tests.
 - **Idempotent & self-cleaning:** jeder erzeugte Todo wird per `DELETE` wieder
@@ -62,11 +62,11 @@ npx newman run road-overview.postman_collection.json \
   --env-var baseUrl=http://127.0.0.1:3001
 ```
 
-> **Erwartetes Ergebnis:** Exit-Code `1` mit genau **5 roten Assertions**
+> **Erwartetes Ergebnis:** Exit-Code `1` mit genau **4 roten Assertions**
 > (alle `[DEFECT #n]`), solange die Defekte bestehen. Newman meldet
-> 34 Requests: die 32 der Collection plus 2 Cleanup-`DELETE`s, die aus
+> 32 Requests: die 30 der Collection plus 2 Cleanup-`DELETE`s, die aus
 > Test-Skripten gesendet werden. Nach einem Fix der Defekte entfallen diese
-> Cleanups (dann 32 Requests / 75 Assertions, alle grün).
+> Cleanups (dann 30 Requests / 71 Assertions, alle grün).
 
 ## Abgedeckte Bereiche
 
@@ -82,8 +82,7 @@ npx newman run road-overview.postman_collection.json \
 5. **POST /todos – Negativ/Edge** – leerer Body, doppelte ID, kaputtes JSON,
    falscher `Content-Type` – jeweils mit Soll-Erwartung (bewusst rot).
 6. **Undokumentierte Methoden** – `PUT` / `PATCH` / `DELETE` auf `/todos/:id`.
-7. **Fehler, Methoden & CORS** – unbekannte Route, `DELETE /roads`,
-   CORS-Preflight der App-Origin, Preflight einer fremden Origin (bewusst rot).
+7. **Fehler & Methoden** – unbekannte Route, `DELETE /roads`.
 
 ## Bewusst rote Tests (`[DEFECT #n]`)
 
@@ -94,8 +93,7 @@ Lauf heißt: der Defekt besteht noch. Wird er behoben, wird der Test ohne
 | Finding | Assertion | Soll | Ist |
 |---|---|---|---|
 | #2 | `[DEFECT #2] empty todo (no title/road_fid) is rejected with 400` | `400` | `201`, Datensatz nur mit `id` |
-| #3 | `[DEFECT #3] foreign origin gets no Access-Control-Allow-Origin` | kein ACAO für `http://evil.example` | Origin gespiegelt + `Allow-Credentials: true` |
-| #4 | `[DEFECT #4] non-JSON Content-Type is rejected with 415 (or 400)` | `415` / `400` | `201`, Body verworfen |
+| #3 | `[DEFECT #3] non-JSON Content-Type is rejected with 415 (or 400)` | `415` / `400` | `201`, Body verworfen |
 | #5 | `[DEFECT #5] duplicate id is rejected with 409 Conflict` | `409` | `500` |
 | #5 | `[DEFECT #5] error response is JSON, not an HTML page` | `application/json` | `text/html` |
 
@@ -112,13 +110,12 @@ Diese Funde wurden beim Bau der Tests empirisch beobachtet:
 
 | # | Schwere | Fund | Test |
 |---|---------|------|------|
-| 1 | **Kritisch** | `POST /roads` liefert **201** und **überschreibt die komplette FeatureCollection** mit dem geposteten Body (Datenverlust, nicht per API wiederherstellbar). Erwartet: `404`/`405`. | manuell (destruktiv) |
+| 1 | **Kritisch** | `POST /roads` liefert **201** und **überschreibt die komplette FeatureCollection** mit dem geposteten Body (Datenverlust, nicht per API wiederherstellbar). Erwartet: `404`/`405`. Auslösbar von jeder fremden Webseite, siehe unten. | manuell (destruktiv) |
 | 2 | **Hoch** | **Keine Eingabevalidierung** bei `POST /todos`: ein leerer Body `{}` (ohne `title` und `road_fid`) wird mit `201` akzeptiert. | `[DEFECT #2]` rot |
-| 3 | **Mittel** | **CORS erlaubt jede Origin:** json-server läuft mit `cors({ origin: true, credentials: true })` und spiegelt jede `Origin` inkl. `Access-Control-Allow-Credentials: true`. Jede Webseite kann damit aus dem Browser lesen und schreiben – auch `POST /roads` (#1). Erwartet: nur die App-Origin. | `[DEFECT #3]` rot |
-| 4 | **Mittel** | Falscher `Content-Type` (z. B. `text/plain`) → Body wird **stillschweigend verworfen**, es entsteht ein leerer Datensatz (`{id:N}`). Erwartet: `415`/`400`. | `[DEFECT #4]` rot |
+| 3 | **Mittel** | Falscher `Content-Type` (z. B. `text/plain`) → Body wird **stillschweigend verworfen**, es entsteht ein leerer Datensatz (`{id:N}`). Erwartet: `415`/`400`. | `[DEFECT #3]` rot |
+| 4 | **Niedrig** | README dokumentiert nur `GET`/`POST /todos`; tatsächlich sind auch `PUT`, `PATCH`, `DELETE /todos/:id` verfügbar (undokumentiert, das Frontend nutzt `PUT` und `DELETE`). Doku-Lücke, die API selbst funktioniert. | grün |
 | 5 | **Niedrig** | Schwache Fehlersemantik: doppelte ID → `500` (statt `409`); Fehler kommen als HTML-Seite statt JSON (z. B. kaputtes JSON → `400` `text/html`). | `[DEFECT #5]` rot (2×) |
-| 6 | **Niedrig** | README dokumentiert nur `GET`/`POST /todos`; tatsächlich sind auch `PUT`, `PATCH`, `DELETE /todos/:id` verfügbar (undokumentiert, das Frontend nutzt `PUT` und `DELETE`). Doku-Lücke, die API selbst funktioniert. | grün |
-| 7 | **Info** | `/roads` ist ein Objekt (keine Array-Ressource) → Filtern/Sortieren/Paginierung **wirken nicht**, `X-Total-Count` fehlt, `GET /roads/:id → 404`. | grün (Limitierung dokumentiert) |
+| 6 | **Info** | `/roads` ist ein Objekt (keine Array-Ressource) → Filtern/Sortieren/Paginierung **wirken nicht**, `X-Total-Count` fehlt, `GET /roads/:id → 404`. | grün (Limitierung dokumentiert) |
 
 > ⚠️ **Fund #1 (`POST /roads`) ist bewusst NICHT Teil des automatischen
 > Laufs**, weil er die Datenbank zerstört und nicht per API wiederherstellbar
@@ -128,8 +125,20 @@ Diese Funde wurden beim Bau der Tests empirisch beobachtet:
 > curl -i -X POST -H "Content-Type: application/json" \
 >   -d '{"x":1}' http://localhost:3000/roads
 > # -> HTTP/1.1 201 Created ; anschließend liefert GET /roads nur noch {"x":1}
+>
+> # Gleicher Effekt ohne Preflight, d. h. aus jeder fremden Webseite auslösbar:
+> curl -i -X POST -H "Content-Type: text/plain" -H "Origin: http://evil.example" \
+>   -d '{"x":1}' http://localhost:3000/roads
+> # -> 201 Created ; GET /roads liefert danach {} (alle 773 Straßen weg)
 > # Danach API neu starten, um die Straßendaten wiederherzustellen.
 > ```
+
+> Nicht als eigener Fund gelistet: json-server läuft mit
+> `cors({ origin: true, credentials: true })` und spiegelt jede `Origin`.
+> Das betrifft nur das **Lesen** der Antworten – der destruktive Schreibzugriff
+> oben funktioniert ohnehin ohne CORS (Simple Request mit `text/plain`, kein
+> Preflight). Vor einem Go-Live gehört CORS trotzdem auf die App-Origin
+> begrenzt.
 
 ## KI-Einsatz (Transparenz, gem. Aufgabenstellung Abschnitt 6)
 
@@ -138,5 +147,5 @@ wurde lokal gestartet und jedes Verhalten (Statuscodes, Header, Fehlerfälle)
 per `curl` real beobachtet. Die Assertions prüfen das **Soll-Verhalten**;
 Abweichungen sind als `[DEFECT #n]` markiert und schlagen bewusst fehl.
 Verifiziert per Newman gegen eine isolierte json-server-Instanz
-(32 Requests / 77 Assertions / 5 bewusst rot; self-cleaning bestätigt – die
+(30 Requests / 73 Assertions / 4 bewusst rot; self-cleaning bestätigt – die
 Todo-Liste ist vor und nach dem Lauf identisch).
