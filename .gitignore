@@ -1,2 +1,4 @@
 .DS_Store
 ~$*
+# Dependencies of any sub-project (e2e-tests, sut/api, sut/edgital_road_overview)
+node_modules/
