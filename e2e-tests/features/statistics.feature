@@ -1,4 +1,4 @@
-@statistics @req-6
+@statistics @req-6 @TF-3
 Feature: Review aggregate road statistics
   As a user
   I want average statistics over all roads with a chart and a table

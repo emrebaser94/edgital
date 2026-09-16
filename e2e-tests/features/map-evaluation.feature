@@ -1,4 +1,4 @@
-@map
+@map @TF-1
 Feature: Assess road condition on the map by evaluation type
   As a user
   I want to pick an evaluation and see roads coloured by their grade
