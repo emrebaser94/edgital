@@ -74,7 +74,7 @@ Tags über `Feature:` gelten für alle Szenarien der Datei.
 
 | Tag | Bedeutung | Szenarien |
 |---|---|---|
-| `@todos` | Todos erfassen (`add-todo.feature`) – steuert zusätzlich den Cleanup-Hook in `features/support/hooks.ts`, daher nicht umbenennen | 3 |
+| `@todos` | Todos erfassen (`add-todo.feature`) – steuert zusätzlich den Cleanup-Hook in `features/support/hooks.ts`, daher nicht umbenennen | 5 |
 | `@map` | Karte, Bewertung & Hover (`map-evaluation.feature`, `road-hover.feature`) | 7 |
 | `@navigation` | Navigation (`navigation.feature`) | 3 |
 | `@statistics` | Statistik-Seite (`statistics.feature`) | 2 |
@@ -82,9 +82,9 @@ Tags über `Feature:` gelten für alle Szenarien der Datei.
 | `@req-4` | Anforderung 4 – Legende | 1 |
 | `@req-5` | Anforderung 5 – Hover-Effekt & Tooltip | 3 |
 | `@req-6` | Anforderung 6 – Statistik | 2 |
-| `@req-7` | Anforderung 7 – Todo anlegen | 3 |
+| `@req-7` | Anforderung 7 – Todo anlegen und aktualisieren | 5 |
 | `@req-8` | Anforderung 8 – Navigation | 3 |
-| `@defect` | bewusst rot, dokumentiert einen Defekt | 5 |
+| `@defect` | bewusst rot, dokumentiert einen Defekt | 7 |
 | `@issue:BUG-01` | Bug-ID aus der Bug-Liste, erscheint im Serenity-Report als Issue | 1 |
 
 ```bash
@@ -117,6 +117,8 @@ grünes CI-Gate `--tags "not @defect"` nutzen.
 | 3 | RISS auswählbar | RISS im Dropdown (Req. 3 nennt RISS explizit; Daten liegen unter `eemi_grade.sub_type_grades.RISS`) | Nur GW/TWGEB/TWOFS/TWRIO/TWSUB/TWEBEN | Req. 3 |
 | 4 | Hover-Tooltip zeigt die gewählte Bewertung (`@issue:BUG-01`) | Nach Wechsel auf TWOFS: `EEMI Grade (twofs): <Note>` | Immer `EEMI Grade (gw): …` – `<GeoJSON>` ohne `key={evaluation}`, die `onEachFeature`-Closure stammt vom ersten Render | Req. 5 |
 | 5 | Straßenfarbe nach Hover | Straße bleibt nach TWOFS eingefärbt | `mouseout` färbt mit `getStyle` des ersten Renders → GW-Farbe; die Karte mischt zwei Bewertungen | Req. 5, 3 |
+| 6 | Alle Todos einer Straße erreichbar | Blättern zwischen den Todos (Straße 1306 hat zwei) | `todos.find` liefert nur das erste; kein Zähler, keine Blätter-Buttons | Req. 7 |
+| 7 | Weiteres Todo anlegbar | Auch zu einer Straße mit Todo lässt sich ein weiteres anlegen | Das Formular bietet nur „Update“ des ersten Todos, kein „Neues Todo“ | Req. 7 |
 
 ## Projektstruktur
 
