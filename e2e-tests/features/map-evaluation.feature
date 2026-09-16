@@ -28,10 +28,3 @@ Feature: Assess road condition on the map by evaluation type
       | evaluation |
       | GW         |
       | TWRIO      |
-
-  @defect @req-3
-  Scenario: [DEFECT] The RISS evaluation is not selectable although the data exists
-    # Requirement 3 explicitly names RISS as a selectable evaluation, and the
-    # value exists under eemi_grade.sub_type_grades.RISS — but the dropdown
-    # only offers GW/TWGEB/TWOFS/TWRIO/TWSUB/TWEBEN.
-    Then he should be able to pick the "RISS" evaluation

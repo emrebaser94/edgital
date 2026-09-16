@@ -77,19 +77,19 @@ Tags über `Feature:` gelten für alle Szenarien der Datei, Tags über
 | Tag | Bedeutung | Szenarien |
 |---|---|---|
 | `@todos` | Todos erfassen (`add-todo.feature`) – steuert zusätzlich den Cleanup-Hook in `features/support/hooks.ts`, daher nicht umbenennen | 5 |
-| `@map` | Karte, Bewertung & Hover (`map-evaluation.feature`, `road-hover.feature`) | 7 |
+| `@map` | Karte, Bewertung & Hover (`map-evaluation.feature`, `road-hover.feature`) | 6 |
 | `@navigation` | Navigation (`navigation.feature`) | 3 |
 | `@statistics` | Statistik-Seite (`statistics.feature`) | 4 |
-| `@req-3` | Anforderung 3 – Straßen nach Bewertung einfärben | 4 |
+| `@req-3` | Anforderung 3 – Straßen nach Bewertung einfärben | 3 |
 | `@req-4` | Anforderung 4 – Legende | 1 |
 | `@req-5` | Anforderung 5 – Hover-Effekt & Tooltip | 3 |
 | `@req-6` | Anforderung 6 – Statistik | 4 |
 | `@req-7` | Anforderung 7 – Todo anlegen und aktualisieren | 5 |
 | `@req-8` | Anforderung 8 – Navigation | 3 |
-| `@TF-1` | Testfall 1 – Straßenzustand nach Bewertungsart auf der Karte beurteilen (`map-evaluation.feature`, `road-hover.feature`) | 7 |
+| `@TF-1` | Testfall 1 – Straßenzustand nach Bewertungsart auf der Karte beurteilen (`map-evaluation.feature`, `road-hover.feature`) | 6 |
 | `@TF-2` | Testfall 2 – Todos für Straßen verwalten (`add-todo.feature`, Navigation zu Todos) | 6 |
 | `@TF-3` | Testfall 3 – Straßendaten sichten und analysieren (`statistics.feature`, Navigation zu Overview/Statistics) | 6 |
-| `@defect` | bewusst rot, dokumentiert einen Defekt | 7 |
+| `@defect` | bewusst rot, dokumentiert einen Defekt | 6 |
 | `@issue:BUG-01` | Bug-ID aus der Bug-Liste, erscheint im Serenity-Report als Issue | 1 |
 
 ```bash
@@ -120,11 +120,10 @@ grünes CI-Gate `--tags "not @defect"` nutzen.
 |---|---|---|---|---|
 | 1 | Create-Button beschriftet | Bei neuer Maßnahme „Save" | „Update" (`selectedRoad ? 'Update' : 'Save'`, `selectedRoad` immer gesetzt) | Req. 7 |
 | 2 | Titel bei Neuanlage eingebbar | Titel ist Eingabefeld | Feld mit Straßennamen vorbelegt **und disabled** | Req. 7 |
-| 3 | RISS auswählbar | RISS im Dropdown (Req. 3 nennt RISS explizit; Daten liegen unter `eemi_grade.sub_type_grades.RISS`) | Nur GW/TWGEB/TWOFS/TWRIO/TWSUB/TWEBEN | Req. 3 |
-| 4 | Hover-Tooltip zeigt die gewählte Bewertung (`@issue:BUG-01`) | Nach Wechsel auf TWOFS: `EEMI Grade (twofs): <Note>` | Immer `EEMI Grade (gw): …` – `<GeoJSON>` ohne `key={evaluation}`, die `onEachFeature`-Closure stammt vom ersten Render | Req. 5 |
-| 5 | Straßenfarbe nach Hover | Straße bleibt nach TWOFS eingefärbt | `mouseout` färbt mit `getStyle` des ersten Renders → GW-Farbe; die Karte mischt zwei Bewertungen | Req. 5, 3 |
-| 6 | Alle Todos einer Straße erreichbar | Blättern zwischen den Todos (Straße 1306 hat zwei) | `todos.find` liefert nur das erste; kein Zähler, keine Blätter-Buttons | Req. 7 |
-| 7 | Weiteres Todo anlegbar | Auch zu einer Straße mit Todo lässt sich ein weiteres anlegen | Das Formular bietet nur „Update“ des ersten Todos, kein „Neues Todo“ | Req. 7 |
+| 3 | Hover-Tooltip zeigt die gewählte Bewertung (`@issue:BUG-01`) | Nach Wechsel auf TWOFS: `EEMI Grade (twofs): <Note>` | Immer `EEMI Grade (gw): …` – `<GeoJSON>` ohne `key={evaluation}`, die `onEachFeature`-Closure stammt vom ersten Render | Req. 5 |
+| 4 | Straßenfarbe nach Hover | Straße bleibt nach TWOFS eingefärbt | `mouseout` färbt mit `getStyle` des ersten Renders → GW-Farbe; die Karte mischt zwei Bewertungen | Req. 5, 3 |
+| 5 | Alle Todos einer Straße erreichbar | Blättern zwischen den Todos (Straße 1306 hat zwei) | `todos.find` liefert nur das erste; kein Zähler, keine Blätter-Buttons | Req. 7 |
+| 6 | Weiteres Todo anlegbar | Auch zu einer Straße mit Todo lässt sich ein weiteres anlegen | Das Formular bietet nur „Update“ des ersten Todos, kein „Neues Todo“ | Req. 7 |
 
 ## Projektstruktur
 

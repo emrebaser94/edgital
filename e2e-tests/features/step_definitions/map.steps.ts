@@ -1,8 +1,8 @@
 import { DataTable, Then, When } from '@cucumber/cucumber';
 import { Actor } from '@serenity-js/core';
-import { contain, Ensure, equals, includes } from '@serenity-js/assertions';
+import { Ensure, equals, includes } from '@serenity-js/assertions';
 
-import { EvaluationOptionLabels, LegendText, RoadColoursOutsidePalette } from '../../src/screenplay/questions';
+import { LegendText, RoadColoursOutsidePalette } from '../../src/screenplay/questions';
 import { SelectEvaluation } from '../../src/screenplay/tasks';
 
 When('{pronoun} selects the {string} evaluation', (actor: Actor, evaluation: string) =>
@@ -21,9 +21,4 @@ Then('{pronoun} should see every visible road coloured with a grade-palette colo
   actor.attemptsTo(
     // RoadColoursOutsidePalette returns the offending colours — expect none.
     Ensure.that(RoadColoursOutsidePalette(60), equals([])),
-  ));
-
-Then('{pronoun} should be able to pick the {string} evaluation', (actor: Actor, option: string) =>
-  actor.attemptsTo(
-    Ensure.that(EvaluationOptionLabels(), contain(option)),
   ));

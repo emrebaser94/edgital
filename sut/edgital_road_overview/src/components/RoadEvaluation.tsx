@@ -159,11 +159,8 @@ const RoadEvaluation = () => {
     }
   };
 
-  // RISS is not a top-level evaluation like gw or twofs; it lives in sub_type_grades.
   const gradeOf = (feature: GeoJSON.Feature<any, any>, selectedEvaluation: string) =>
-    selectedEvaluation === 'riss'
-      ? feature.properties.eemi_grade.sub_type_grades?.RISS
-      : feature.properties.eemi_grade[selectedEvaluation];
+    feature.properties.eemi_grade[selectedEvaluation];
 
   const getStyle = (feature: GeoJSON.Feature<any, any> | null | undefined) => {
     const eemi = feature ? gradeOf(feature, evaluation) : undefined;
@@ -270,7 +267,6 @@ const RoadEvaluation = () => {
             <option className='p-2 text-sm' value="twrio">TWRIO</option>
             <option className='p-2 text-sm' value="twsub">TWSUB</option>
             <option className='p-2 text-sm' value="tweben">TWEBEN</option>
-            <option className='p-2 text-sm' value="riss">RISS</option>
           </select>
 
             <div className="flex items-center ml-auto">

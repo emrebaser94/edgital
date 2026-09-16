@@ -14,9 +14,6 @@ export class RoadMap {
   static evaluationDropdown = () =>
     PageElement.located(By.css('select')).describedAs('the evaluation dropdown');
 
-  static evaluationOptions = () =>
-    PageElements.located(By.css('select option')).describedAs('the evaluation options');
-
   /** The Leaflet tooltip that opens while a road is hovered. */
   static tooltip = () =>
     PageElement.located(By.css('.leaflet-tooltip')).describedAs('the road tooltip');

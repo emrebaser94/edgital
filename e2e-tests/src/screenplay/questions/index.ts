@@ -2,7 +2,6 @@ export * from './AverageGwGrade';
 export * from './BarValue';
 export * from './ChartedEvaluations';
 export * from './CurrentUrl';
-export * from './EvaluationOptionLabels';
 export * from './GradeColourFromApi';
 export * from './GradeLineFromApi';
 export * from './LegendText';
