@@ -58,18 +58,47 @@ server.use((req, res, next) =>
 
 server.use(jsonServer.bodyParser);
 
-// A new todo needs a title and the road it belongs to, and must not reuse an id.
-server.post('/todos', (req, res, next) => {
-  const { id, title, road_fid: roadFid } = req.body;
-  if (typeof title !== 'string' || title.trim() === '' || !Number.isInteger(roadFid)) {
-    return sendError(res, 400, 'title (non-empty string) and road_fid (integer) are required');
+const roadExists = (fid) => router.db.get('roads.features').some((road) => road.properties.fid === fid).value();
+const todoExists = (id) => router.db.get('todos').some((todo) => String(todo.id) === String(id)).value();
+
+// A todo needs a non-empty title and the fid of an existing road. With `partial`
+// (PATCH) only the fields the request sends are checked. Returns [status, message] or null.
+const todoError = (body, { partial }) => {
+  if ((!partial || 'title' in body) && (typeof body.title !== 'string' || body.title.trim() === '')) {
+    return [400, 'title must be a non-empty string'];
   }
-  const hasId = id !== undefined && id !== null && id !== '';
-  if (hasId && router.db.get('todos').some((todo) => String(todo.id) === String(id)).value()) {
+  if (!partial || 'road_fid' in body) {
+    if (!Number.isInteger(body.road_fid)) {
+      return [400, 'road_fid must be an integer'];
+    }
+    if (!roadExists(body.road_fid)) {
+      return [422, `road_fid ${body.road_fid} does not reference an existing road`];
+    }
+  }
+  return null;
+};
+
+// A new todo must be valid and must not reuse an id.
+server.post('/todos', (req, res, next) => {
+  const error = todoError(req.body, { partial: false });
+  if (error) {
+    return sendError(res, ...error);
+  }
+  const { id } = req.body;
+  if (id !== undefined && id !== null && id !== '' && todoExists(id)) {
     return sendError(res, 409, `a todo with id ${id} already exists`);
   }
   next();
 });
+
+// PUT replaces and PATCH merges a todo; either way a valid todo must remain.
+// A todo that does not exist is left to json-server, which answers 404 (no upsert).
+const validateTodoUpdate = (partial) => (req, res, next) => {
+  const error = todoExists(req.params.id) ? todoError(req.body, { partial }) : null;
+  return error ? sendError(res, ...error) : next();
+};
+server.put('/todos/:id', validateTodoUpdate(false));
+server.patch('/todos/:id', validateTodoUpdate(true));
 
 server.use(router);
 

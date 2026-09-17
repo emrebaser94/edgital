@@ -2,7 +2,7 @@
   "info": {
     "name": "Road Overview API - json-server",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "API test collection for the Road Overview json-server backend (base http://localhost:3000). Covers GET /roads, GET/POST /todos plus json-server features (filtering, sorting, pagination, single records) and negative/edge cases. All state-changing tests are self-cleaning (created todos are deleted again), so the collection is idempotent.\n\nAssertions check the EXPECTED (correct) behaviour. Known defects are tagged [DEFECT #n] (finding number from README/deck) and FAIL ON PURPOSE - same convention as @defect in the E2E suite. A red run therefore means: these defects still exist.\n\nNOT executed here (destructive, wipes all roads): DEFECT #1 - POST /roads returns 201 and OVERWRITES the entire FeatureCollection; a plain cross-site POST with Content-Type text/plain triggers it without any preflight. See README for the documented reproduction. Actual behaviour was verified empirically against json-server@0.17.4."
+    "description": "API test collection for the Road Overview json-server backend (base http://localhost:3000). Covers GET /roads, GET/POST /todos plus json-server features (filtering, sorting, pagination, single records) and negative/edge cases. All state-changing tests are self-cleaning (created todos are deleted again), so the collection is idempotent.\n\nAssertions check the EXPECTED (correct) behaviour. Known defects are tagged [DEFECT #n] (finding number from README/deck) and FAIL ON PURPOSE - same convention as @defect in the E2E suite. A red run therefore means: these defects still exist.\n\nNOT executed here (destructive, wipes all roads): DEFECT #1 - POST /roads and PUT /roads return 201/200 and OVERWRITE the entire FeatureCollection, PATCH /roads returns 200 and merges fields into it; a plain cross-site POST with Content-Type text/plain triggers it without any preflight. See README for the documented reproduction. Actual behaviour was verified empirically against json-server@0.17.4."
   },
   "item": [
     {
@@ -525,6 +525,129 @@
           ]
         },
         {
+          "name": "[DEFECT #2] POST empty title \"\" -> 400 expected",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/todos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\": \"\", \"status\": \"open\", \"road_fid\": 1306}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// DEFECT #2: no input validation. An empty title is no title - the todo must be rejected",
+                  "// with 400. Actual: 201 -> this test fails on purpose.",
+                  "pm.test(\"[DEFECT #2] todo with an empty title is rejected with 400\", () => pm.response.to.have.status(400));",
+                  "// self-cleaning: the server still creates a record while the defect exists -> delete it",
+                  "if (pm.response.code === 201) {",
+                  "    pm.sendRequest({ url: pm.variables.replaceIn(\"{{baseUrl}}/todos/\") + pm.response.json().id, method: \"DELETE\" }, (err, res) => {",
+                  "        pm.test(\"cleanup: empty-title todo deleted again\", () => { pm.expect(err).to.be.null; pm.expect(res.code).to.eql(200); });",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEFECT #2] POST road_fid as string -> 400 expected",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/todos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\": \"road_fid sent as a string\", \"status\": \"open\", \"road_fid\": \"abc\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// DEFECT #2: no type check. road_fid references a road and must be an integer - a string",
+                  "// must be rejected with 400. Actual: 201 -> this test fails on purpose.",
+                  "pm.test(\"[DEFECT #2] todo with a non-integer road_fid is rejected with 400\", () => pm.response.to.have.status(400));",
+                  "// self-cleaning: the server still creates a record while the defect exists -> delete it",
+                  "if (pm.response.code === 201) {",
+                  "    pm.sendRequest({ url: pm.variables.replaceIn(\"{{baseUrl}}/todos/\") + pm.response.json().id, method: \"DELETE\" }, (err, res) => {",
+                  "        pm.test(\"cleanup: string-road_fid todo deleted again\", () => { pm.expect(err).to.be.null; pm.expect(res.code).to.eql(200); });",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEFECT #2] POST unknown road_fid 999999 -> 400/422 expected",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/todos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\": \"todo for a road that does not exist\", \"status\": \"open\", \"road_fid\": 999999}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// DEFECT #2: no reference check. There is no road with fid 999999, so the todo would point",
+                  "// nowhere - expected 400 or 422. Actual: 201 -> this test fails on purpose.",
+                  "pm.test(\"[DEFECT #2] todo for a road that does not exist is rejected with 400 or 422\", () => pm.expect(pm.response.code).to.be.oneOf([400, 422]));",
+                  "// self-cleaning: the server still creates a record while the defect exists -> delete it",
+                  "if (pm.response.code === 201) {",
+                  "    pm.sendRequest({ url: pm.variables.replaceIn(\"{{baseUrl}}/todos/\") + pm.response.json().id, method: \"DELETE\" }, (err, res) => {",
+                  "        pm.test(\"cleanup: unknown-road todo deleted again\", () => { pm.expect(err).to.be.null; pm.expect(res.code).to.eql(200); });",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "[DEFECT #5] POST duplicate id (id:1) -> 409 expected",
           "request": {
             "method": "POST",
@@ -537,7 +660,7 @@
             "url": "{{baseUrl}}/todos",
             "body": {
               "mode": "raw",
-              "raw": "{\"id\": 1, \"title\": \"duplicate id attempt\", \"road_fid\": 1}",
+              "raw": "{\"id\": 1, \"title\": \"duplicate id attempt\", \"road_fid\": 1306}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -688,7 +811,7 @@
             "url": "{{baseUrl}}/todos/{{crudTodoId}}",
             "body": {
               "mode": "raw",
-              "raw": "{\"title\": \"crud replaced\", \"status\": \"done\", \"road_fid\": 2000}",
+              "raw": "{\"title\": \"crud replaced\", \"status\": \"done\", \"road_fid\": 2135}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -702,10 +825,10 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Finding #6: README only documents GET/POST. PUT works correctly -> documentation gap, not an API defect, test stays green.",
+                  "// Finding #4: README only documents GET/POST. PUT with a valid body works correctly -> documentation gap, not an API defect, test stays green.",
                   "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
                   "const b = pm.response.json();",
-                  "pm.test(\"resource fully replaced\", () => { pm.expect(b.title).to.eql(\"crud replaced\"); pm.expect(b.road_fid).to.eql(2000); });"
+                  "pm.test(\"resource fully replaced\", () => { pm.expect(b.title).to.eql(\"crud replaced\"); pm.expect(b.road_fid).to.eql(2135); });"
                 ]
               }
             }
@@ -741,6 +864,77 @@
                   "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
                   "const b = pm.response.json();",
                   "pm.test(\"only status changed, title preserved\", () => { pm.expect(b.status).to.eql(\"archived\"); pm.expect(b.title).to.eql(\"crud replaced\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEFECT #7] PUT /todos/:id with empty body {} -> 400 expected",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/todos/{{crudTodoId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// DEFECT #7: PUT replaces the whole record without validation. An empty body must be",
+                  "// rejected with 400. Actual: 200 and the todo is reduced to {\"id\": n} - title, status and",
+                  "// road_fid are lost -> this test fails on purpose. (The record is deleted in the next request.)",
+                  "pm.test(\"[DEFECT #7] PUT without title and road_fid is rejected with 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEFECT #7] PATCH /todos/:id title \"\" -> 400 expected",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/todos/{{crudTodoId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\": \"\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// DEFECT #7: PATCH does not validate either. Emptying the title must be rejected with 400.",
+                  "// Actual: 200 -> this test fails on purpose.",
+                  "pm.test(\"[DEFECT #7] PATCH with an empty title is rejected with 400\", () => pm.response.to.have.status(400));"
                 ]
               }
             }

@@ -22,7 +22,8 @@ Hint: Check https://github.com/typicode/json-server for more information about t
 
 ### API rules
 json-server is started as a module (`server.js`, `npm start`) with a few rules on top:
-- `POST /todos` requires `title` (non-empty string) and `road_fid` (integer), otherwise `400`; an `id` that is already taken returns `409`
+- `POST /todos` requires `title` (non-empty string) and `road_fid` (integer), otherwise `400`; a `road_fid` without a matching road returns `422`; an `id` that is already taken returns `409`
+- `PUT /todos/:id` applies the same rules to the replacing body; `PATCH /todos/:id` checks `title` and `road_fid` only if it sends them. A todo that does not exist still returns `404`
 - Write requests (`POST`/`PUT`/`PATCH`) must send `Content-Type: application/json`, otherwise `415`
 - Errors (e.g. a malformed JSON body) are returned as JSON: `{ "error": "..." }`
 - `/roads` is read-only: `POST`/`PUT`/`PATCH` return `405`
