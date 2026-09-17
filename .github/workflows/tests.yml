@@ -57,7 +57,6 @@ jobs:
       # --- API-Tests (Newman -> HTML + JUnit) ---
       # Das Log listet nur fehlgeschlagene Assertions; Zusammenfassung und
       # Fehlertabelle landen zusätzlich in der Job-Summary des Workflow-Laufs.
-      # Der HTML-Report lässt die Response-Bodies weg (/roads allein sind 2,6 MB).
       - name: API tests (Newman)
         id: api
         continue-on-error: true         # Report soll auch bei Fehlern deployt werden
@@ -73,7 +72,6 @@ jobs:
             --reporter-htmlextra-export report/index.html \
             --reporter-htmlextra-title "Road Overview – API-Tests" \
             --reporter-htmlextra-browserTitle "API-Tests" \
-            --reporter-htmlextra-omitResponseBodies \
             --reporter-htmlextra-testPaging \
             --reporter-junit-export report/junit.xml \
             2>&1 | tee newman-cli.txt
