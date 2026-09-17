@@ -26,7 +26,7 @@ Edge-Cases.
 |-------|-------|
 | `road-overview.postman_collection.json` | Die Collection (Postman v2.1) |
 | `road-overview.postman_environment.json` | Environment mit `baseUrl` |
-| `report.html` | Newman-htmlextra-Report des letzten lokalen Laufs (ohne Response-Bodies, gegen die Original-API) |
+| `report.html` | Newman-htmlextra-Report des letzten lokalen Laufs (mit Response-Bodies, gegen die Original-API) |
 
 ## Voraussetzungen
 
@@ -82,7 +82,7 @@ npx newman run road-overview.postman_collection.json \
 | Wo | Was man sieht |
 |---|---|
 | **Konsole** | Am Ende die Zusammenfassung (`assertions … executed / failed`) und darunter eine nummerierte Fehlertabelle: Assertion-Name, Soll/Ist, Ordner und Request. Mit `--reporter-cli-no-success-assertions` erscheinen nur noch die fehlgeschlagenen Assertions. |
-| **`report.html`** | HTML-Report ohne Response-Bodies (~0,6 MB statt 8,8 MB, weil `/roads` allein 2,6 MB GeoJSON liefert). Der Tab **Failed Tests** listet nur die roten Assertions. |
+| **`report.html`** | HTML-Report mit Request- und Response-Bodies je Request. Er ist rund 8,8 MB groß, weil `/roads` allein 2,6 MB GeoJSON liefert. Der Tab **Failed Tests** listet nur die roten Assertions. |
 | **CI** | Das Log zeigt nur Fehlschläge. Zusammenfassung und Fehlertabelle stehen in der **Job-Summary** des Workflow-Laufs, der vollständige Report auf GitHub Pages unter `api/`. |
 
 Ein Eintrag der Fehlertabelle:
